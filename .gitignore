@@ -1,0 +1,8 @@
+*~
+logs/*
+devel/*
+*.log
+node_modules
+npm-debug.log
+
+
