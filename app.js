@@ -35,13 +35,17 @@ const App =  process.env.NODE_ENV === 'production'
       ? require('./config/prod.conf')
       : require('./config/dev.conf');
 
+const ETC =  process.env.NODE_ENV === 'production'
+      ? path.join(process.cwd(), '/etc/')
+      : path.join(process.cwd(), '/devel/etc/')
+
+let Pipeline = require('js-pipeline')
 
 
 var MyApp = new Class({
   Extends: App,
 
-	// io: require("socket.io")(server)
-	// io: require("socket.io")(server),
+	pipeline: undefined,
 
 	options: {
 		io: {
@@ -116,11 +120,13 @@ var MyApp = new Class({
 		})
 		io.use(sharedsession(this.session))//move to middlewares?
 
-		this.add_io(io)
+		this.add_io(io.of('/'))
 
 		this.profile('root_init');//start profiling
 
+		const AppPipeline = require('./libs/pipelines/app')(require(ETC+'default.conn.js'), this.io)
 
+		this.pipeline = new Pipeline(AppPipeline)
 
 		// let io = require("socket.io")(server)
 		// io.use(sharedsession(this.session))
@@ -136,6 +142,23 @@ var MyApp = new Class({
 
 		this.log('root', 'info', 'root started');
   },
+	socket: function(socket){
+		this.parent(socket)
+
+		// console.log('suspended', this.pipeline.inputs[0].options.suspended)
+		if(this.pipeline.inputs[0].options.suspended === true)
+			this.pipeline.fireEvent('onResume')
+
+    //
+		// console.log('this.io.namespace.connected', Object.keys(this.io.connected))
+    //
+		socket.on('disconnect', function () {
+			if(Object.keys(this.io.connected).length == 0)
+				this.pipeline.fireEvent('onSuspend')
+
+			console.log('disconnect his.io.namespace.connected', Object.keys(this.io.connected))
+		}.bind(this));
+	},
 
 
 });
