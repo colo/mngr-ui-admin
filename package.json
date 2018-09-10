@@ -20,6 +20,7 @@
     "mootools": "^1.5.2",
     "multer": "^1.1.0",
     "node-app-couchdb-client": "git+https://github.com/colo/node-app-couchdb-client.git",
+    "node-cron": "^1.2.1",
     "node-express-app": "git+https://github.com/colo/node-express-app.git",
     "node-limit": "git+https://github.com/colo/node-limit.git",
     "serve-index": "^1.7.3",

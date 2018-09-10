@@ -8,12 +8,12 @@ module.exports = function(conn, io){
   		{
   			poll: {
           suspended: true,//start suspended
-  				id: "input.count.docs",
+  				id: "input.docs",
   				conn: [
             Object.merge(
               Object.clone(conn),
               {
-                id: 'input.count.docs',
+                id: 'input.docs',
                 module: InputPollerCouchDBApp,
               }
             )
@@ -43,16 +43,10 @@ module.exports = function(conn, io){
   	// ],
   	output: [
   		function(doc){
-        console.log('output', doc)
+        // console.log('output', doc)
 
         io.emit('app.doc', doc)
-  			// doc = JSON.decode(doc)
 
-  			// console.log(doc)
-  			// store.commit('app/doc', {type: 'count', 'value': doc.data})
-
-  			// if(typeof EventBus !== 'undefined')
-  			// 	EventBus.$emit('count', doc)
 
 
   		}

@@ -49,69 +49,61 @@ var MyApp = new Class({
 
 	options: {
 		io: {
-			middlewares: [], //namespace.use(fn)
-			rooms: ['root'], //atomatically join connected sockets to this rooms
-			routes: {
-				message: [{
-					// path: ':param',
-					once: true, //socket.once
-					callbacks: ['check', 'message'],
-					middlewares: [], //socket.use(fn)
-				}],
-				// '*': [{// catch all
-				// 	path: '',
-				// 	callbacks: ['not_found_message'],
-				// 	middlewares: [], //socket.use(fn)
-				// }]
-			}
+			// middlewares: [], //namespace.use(fn)
+			// rooms: ['root'], //atomatically join connected sockets to this rooms
+			// routes: {
+			// 	message: [{
+			// 		// path: ':param',
+			// 		once: true, //socket.once
+			// 		callbacks: ['check', 'message'],
+			// 		middlewares: [], //socket.use(fn)
+			// 	}],
+			// 	// '*': [{// catch all
+			// 	// 	path: '',
+			// 	// 	callbacks: ['not_found_message'],
+			// 	// 	middlewares: [], //socket.use(fn)
+			// 	// }]
+			// }
 		}
 	},
 
-	check: function(socket, next){
-		console.log('checking...', arguments[2])
-		// arguments[1]()
-		this.io.to('root').emit('response', 'a new user has joined the room saying '+arguments[2]);
-		next(socket)
-	},
-	message: function(socket, next){
-		console.log('message')
-		socket.emit('response', 'some response')
-
-		// console.log(this.authorization)
-	},
-	not_found_message(socket, next){
-		console.log('not_found_message')
-		socket.emit('response', 'not found')
-	},
+	// check: function(socket, next){
+	// 	console.log('checking...', arguments[2])
+	// 	// arguments[1]()
+	// 	this.io.to('root').emit('response', 'a new user has joined the room saying '+arguments[2]);
+	// 	next(socket)
+	// },
+	// message: function(socket, next){
+	// 	console.log('message')
+	// 	socket.emit('response', 'some response')
+  //
+	// 	// console.log(this.authorization)
+	// },
+	// not_found_message(socket, next){
+	// 	console.log('not_found_message')
+	// 	socket.emit('response', 'not found')
+	// },
 	get: function(req, resp){
-		resp.send(
-			'<!doctype html><html><head><title>socket.io client test</title></head>'
-			+'<body><script src="/socket.io/socket.io.js"></script>'
-			+'<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js"></script>'
-			+'<script>'
-			+'var chat = io.connect("http://localhost:8080/");'
-		  +'chat.on("connect", function () {'
-		  +'  chat.emit("message", "hi!");'
-			+'	chat.on("response", function(message){ '
-			+'		$("body").append(message);'
-			+'	});'
-			+'  chat.emit("message");'//test
-		  +'});'
-			+'</script>'
-			+'</body></html>'
-		)
+	// 	resp.send(
+	// 		'<!doctype html><html><head><title>socket.io client test</title></head>'
+	// 		+'<body><script src="/socket.io/socket.io.js"></script>'
+	// 		+'<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js"></script>'
+	// 		+'<script>'
+	// 		+'var chat = io.connect("http://localhost:8080/");'
+	// 	  +'chat.on("connect", function () {'
+	// 	  +'  chat.emit("message", "hi!");'
+	// 		+'	chat.on("response", function(message){ '
+	// 		+'		$("body").append(message);'
+	// 		+'	});'
+	// 		+'  chat.emit("message");'//test
+	// 	  +'});'
+	// 		+'</script>'
+	// 		+'</body></html>'
+	// 	)
 	},
 
   initialize: function(options){
-		// this.addEvent(this.ON_INIT, () => {
-		// 	console.log('INIT')
-		// 	let io = require("socket.io")(server, {
-		// 		transports: ['websocket', 'polling']
-		// 	})
-		// 	io.use(sharedsession(this.session))
-    //
-		// 	this.add_io(io)
-		// });
+
 
 		this.parent(options);//override default options
 
@@ -120,19 +112,13 @@ var MyApp = new Class({
 		})
 		io.use(sharedsession(this.session))//move to middlewares?
 
-		this.add_io(io.of('/'))
+		this.add_io(io)
 
 		this.profile('root_init');//start profiling
 
 		const AppPipeline = require('./libs/pipelines/app')(require(ETC+'default.conn.js'), this.io)
 
 		this.pipeline = new Pipeline(AppPipeline)
-
-		// let io = require("socket.io")(server)
-		// io.use(sharedsession(this.session))
-
-		// this.io = io.of(this.options.path)
-
 
 
 		this.express().set('authentication',this.authentication);
@@ -153,10 +139,10 @@ var MyApp = new Class({
 		// console.log('this.io.namespace.connected', Object.keys(this.io.connected))
     //
 		socket.on('disconnect', function () {
-			if(Object.keys(this.io.connected).length == 0)
+			if(!this.io.connected || Object.keys(this.io.connected).length == 0)
 				this.pipeline.fireEvent('onSuspend')
 
-			console.log('disconnect his.io.namespace.connected', Object.keys(this.io.connected))
+			console.log('disconnect this.io.namespace.connected', this.io.connected)
 		}.bind(this));
 	},
 
