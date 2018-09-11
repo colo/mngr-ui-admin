@@ -45,7 +45,7 @@ module.exports = function(conn, io){
   		function(doc){
         // console.log('output', doc)
 
-        io.emit('app.doc', doc)
+        io.volatile.emit('app.doc', doc)
 
 
 

@@ -44,13 +44,13 @@ module.exports = new Class({
 		},
 
 		routes: {
-			get: [
-				{
-					path: '',
-					callbacks: ['get'],
-					version: '',
-				},
-			],
+			// get: [
+			// 	{
+			// 		path: '',
+			// 		callbacks: ['get'],
+			// 		version: '',
+			// 	},
+			// ],
 			all: [
 				{
 					path: '',
@@ -59,7 +59,7 @@ module.exports = new Class({
 				},
 			]
 		},
-		
+
 	// 	api: {
   //
 	// 		version: '1.0.0',

@@ -67,23 +67,7 @@ var MyApp = new Class({
 		}
 	},
 
-	// check: function(socket, next){
-	// 	console.log('checking...', arguments[2])
-	// 	// arguments[1]()
-	// 	this.io.to('root').emit('response', 'a new user has joined the room saying '+arguments[2]);
-	// 	next(socket)
-	// },
-	// message: function(socket, next){
-	// 	console.log('message')
-	// 	socket.emit('response', 'some response')
-  //
-	// 	// console.log(this.authorization)
-	// },
-	// not_found_message(socket, next){
-	// 	console.log('not_found_message')
-	// 	socket.emit('response', 'not found')
-	// },
-	get: function(req, resp){
+	// get: function(req, resp){
 	// 	resp.send(
 	// 		'<!doctype html><html><head><title>socket.io client test</title></head>'
 	// 		+'<body><script src="/socket.io/socket.io.js"></script>'
@@ -100,7 +84,7 @@ var MyApp = new Class({
 	// 		+'</script>'
 	// 		+'</body></html>'
 	// 	)
-	},
+	// },
 
   initialize: function(options){
 
