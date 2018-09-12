@@ -24,6 +24,7 @@
     "node-cron": "^1.2.1",
     "node-express-app": "git+https://github.com/colo/node-express-app.git",
     "node-limit": "git+https://github.com/colo/node-limit.git",
+    "node-mngr-docs": "git+https://github.com/colo/node-mngr-docs.git",
     "node-tabular-data": "git+https://github.com/colo/node-tabular-data.git",
     "serve-index": "^1.7.3",
     "serve-static": "^1.10.2",
