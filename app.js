@@ -107,7 +107,7 @@ var MyApp = new Class({
 
 		this.express().set('authentication',this.authentication);
 
-		// console.log('PATH', this.options.path)
+		// //console.log('PATH', this.options.path)
 		this.profile('root_init');//end profiling
 
 		this.log('root', 'info', 'root started');
@@ -115,18 +115,18 @@ var MyApp = new Class({
 	socket: function(socket){
 		this.parent(socket)
 
-		// console.log('suspended', this.pipeline.inputs[0].options.suspended)
+		// //console.log('suspended', this.pipeline.inputs[0].options.suspended)
 		if(this.pipeline.inputs[0].options.suspended === true)
 			this.pipeline.fireEvent('onResume')
 
     //
-		// console.log('this.io.namespace.connected', Object.keys(this.io.connected))
+		// //console.log('this.io.namespace.connected', Object.keys(this.io.connected))
     //
 		socket.on('disconnect', function () {
 			if(!this.io.connected || Object.keys(this.io.connected).length == 0)
 				this.pipeline.fireEvent('onSuspend')
 
-			console.log('disconnect this.io.namespace.connected', this.io.connected)
+			//console.log('disconnect this.io.namespace.connected', this.io.connected)
 		}.bind(this));
 	},
 

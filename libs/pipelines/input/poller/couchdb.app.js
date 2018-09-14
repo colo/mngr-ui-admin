@@ -22,7 +22,7 @@ module.exports = new Class({
       // once: [
       //   {
 			// 		count_docs: function(req, next, app){
-      //       ////console.log('search_hosts', next)
+      //       //////console.log('search_hosts', next)
       //
 			// 			// next(
       //       app.view({
@@ -50,7 +50,7 @@ module.exports = new Class({
 			periodical: [
         {
           count_docs: function(req, next, app){
-            ////console.log('search_hosts', next)
+            //////console.log('search_hosts', next)
 
             // next(
             app.view({
@@ -76,7 +76,7 @@ module.exports = new Class({
         },
         {
 					search_hosts: function(req, next, app){
-            // console.log('search_hosts', next)
+            // //console.log('search_hosts', next)
 
 						// next(
             app.view({
@@ -97,7 +97,7 @@ module.exports = new Class({
 				},
         {
 					search_paths: function(req, next, app){
-            // console.log('search_paths', next)
+            // //console.log('search_paths', next)
 
 						// next(
             app.view({
@@ -141,10 +141,10 @@ module.exports = new Class({
   },
 
   view: function(err, resp, view){
-		// console.log('count.view ', resp, view.options.args);
+		// //console.log('count.view ', resp, view.options.args);
 
 		if(err){
-			////////console.log('this.sort_by_path error %o', err);
+			//////////console.log('this.sort_by_path error %o', err);
 		}
     else if (view.options.args[0] == 'sort' && view.options.args[1] == 'by_date') {
       this.fireEvent('onPeriodicalDoc', [{type: 'count', value: resp.rows.length }, {type: 'periodical', input_type: this, app: null}]);
@@ -168,7 +168,7 @@ module.exports = new Class({
   },
   request: function(err, resp){
 		if(err){
-			////////console.log('this.info error %o', err);
+			//////////console.log('this.info error %o', err);
 			//this.fireEvent(this.ON_CONNECT_ERROR, err);
 		}
 	},
@@ -183,7 +183,7 @@ module.exports = new Class({
 		this.log('root', 'info', 'root started');
   },
   connect: function(){
-		// console.log('this.connect');
+		// //console.log('this.connect');
     //
 		// try{
 		// 	//this.os.api.get({uri: 'hostname'});
@@ -199,11 +199,11 @@ module.exports = new Class({
     //
 		// }
 		// catch(e){
-		// 	////////console.log(e);
+		// 	//////////console.log(e);
 		// }
 	},
 	_first_connect: function(err, result, body, opts){
-		// // //////console.log('first_connect %o', result.uuid);
+		// // ////////console.log('first_connect %o', result.uuid);
 		// this.options.id = 'hosts-'+result.uuid;//set ID
     //
     // // this.fireEvent('ON_RANGE', {})
