@@ -22,7 +22,7 @@ module.exports = function(conn, io){
   				connect_retry_count: 5,
   				connect_retry_periodical: 1000,
   				requests: {
-  					periodical: 10000,
+  					periodical: 5000,
   				},
   			},
   		},
@@ -31,7 +31,7 @@ module.exports = function(conn, io){
   	// filters: [
   	// 	function(doc, opts, next){
     //
-  	// 		// //console.log('search_pipeline ', doc)
+  	// 		// console.log('search_pipeline ', doc)
     //
   	// 		buffer = Object.merge(buffer, doc.data)
     //
@@ -43,7 +43,7 @@ module.exports = function(conn, io){
   	// ],
   	output: [
   		function(doc){
-        // //console.log('output', doc)
+        // console.log('output', doc)
 
         io.volatile.emit('app.doc', doc)
 
