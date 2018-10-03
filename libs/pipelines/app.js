@@ -2,6 +2,8 @@
 
 const InputPollerCouchDBApp = require ( './input/poller/couchdb.app.js' )
 
+let cron = require('node-cron')
+
 module.exports = function(conn, io){
   let conf = {
   	input: [
@@ -21,9 +23,15 @@ module.exports = function(conn, io){
   				],
   				connect_retry_count: 5,
   				connect_retry_periodical: 1000,
-  				requests: {
-  					periodical: 5000,
-  				},
+  				// requests: {
+  				// 	periodical: 5000,
+  				// },
+          requests: {
+      			periodical: function(dispatch){
+  						// //////////console.log('host periodical running')
+      				return cron.schedule('*/5 * * * * *', dispatch);//every 5 seconds
+      			}
+      		},
   			},
   		},
 

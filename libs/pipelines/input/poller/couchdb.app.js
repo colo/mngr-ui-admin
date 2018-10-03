@@ -12,7 +12,10 @@ module.exports = new Class({
 
 
   options: {
-
+    couchdb: {
+      request: require('cachemachine')({redis: true, hostname: 'elk'})
+    },
+    
     // range: [
     //   Date.now() - 300000,
     //   Date.now()
