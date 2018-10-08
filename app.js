@@ -45,46 +45,169 @@ let Pipeline = require('js-pipeline')
 var MyApp = new Class({
   Extends: App,
 
+	docs : {},
+	// docs_types: ['count', 'hosts', 'paths'],
+
+
 	pipeline: undefined,
 
 	options: {
+		path: '/_app',
+
+		params: {
+			type: /count|hosts|paths/,
+		},
+
+		api: {
+			path: '/_app',
+
+			routes: {
+				get: [
+					{
+						path: ':type?',
+						callbacks: ['get'],
+						version: '',
+					},
+				],
+			},
+		},
+
 		io: {
 			// middlewares: [], //namespace.use(fn)
 			// rooms: ['root'], //atomatically join connected sockets to this rooms
-			// routes: {
-			// 	message: [{
+			routes: {
+				get: [{
 			// 		// path: ':param',
 			// 		once: true, //socket.once
-			// 		callbacks: ['check', 'message'],
+					callbacks: ['get'],
 			// 		middlewares: [], //socket.use(fn)
-			// 	}],
-			// 	// '*': [{// catch all
-			// 	// 	path: '',
-			// 	// 	callbacks: ['not_found_message'],
-			// 	// 	middlewares: [], //socket.use(fn)
-			// 	// }]
-			// }
+				}],
+			}
+
 		}
 	},
+	_arguments: function(args, defined_params){
+		let req, resp, next, socket = undefined
+    // console.log(typeof args[0])
+		if(args[0]._readableState){//express
+			req = args[0]
+			resp = args[1]
+			next = args[2]
+		}
+		else{//socket.io
+			socket = args[0]
+			next = args[1]
+		}
 
-	// get: function(req, resp){
-	// 	resp.send(
-	// 		'<!doctype html><html><head><title>socket.io client test</title></head>'
-	// 		+'<body><script src="/socket.io/socket.io.js"></script>'
-	// 		+'<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js"></script>'
-	// 		+'<script>'
-	// 		+'var chat = io.connect("http://localhost:8080/");'
-	// 	  +'chat.on("connect", function () {'
-	// 	  +'  chat.emit("message", "hi!");'
-	// 		+'	chat.on("response", function(message){ '
-	// 		+'		$("body").append(message);'
-	// 		+'	});'
-	// 		+'  chat.emit("message");'//test
-	// 	  +'});'
-	// 		+'</script>'
-	// 		+'</body></html>'
-	// 	)
-	// },
+		let params = {}
+		if(typeof(req) != 'undefined'){
+			params = req.params
+		}
+		else{
+      // console.log('socket', args)
+      if(defined_params){
+        Array.each(defined_params, function(name, index){
+          params[name] = args[index + 2]
+        })
+      }
+      else{
+		     params = args[2]
+      }
+		}
+
+
+
+		return {req:req, resp:resp, socket:socket, next:next, params: params}
+	},
+	get: function(){
+		// console.log(arguments)
+		// console.log(this._arguments(arguments))
+		let {req, resp, socket, next, params} = this._arguments(arguments, ['type'])
+
+
+
+		console.log('get', params)
+
+		// if(req.params.type && )
+ // && this.docs.length == this.docs_type.length
+
+		let send_docs = function(){
+			console.log('send_docs', this.docs)
+			if(params.type === null){
+				if(resp){
+					resp.status(500).json({error: 'wrong type param', status: 500})
+				}
+				else{
+					console.log('emiting')
+					socket.emit('app.doc', {error: 'wrong type param', status: 500})
+				}
+			}
+			else if(params.type === undefined){
+				if(resp){
+					resp.json(Object.values(this.docs))
+				}
+				else{
+					console.log('emiting')
+					socket.emit('app.doc', Object.values(this.docs))
+				}
+			}
+			else{
+
+				// let found = false
+				// Array.each(this.docs, function(doc, index){
+				// 	if(this.options.params.type.test(doc.type))
+				// 		found = index
+				// }.bind(this))
+
+				if(!this.docs[params.type]){
+					if(resp){
+						resp.status(404).json({error: 'not found', type: params.type, status: 404})
+					}
+					else{
+						socket.emit('app.doc', {error: 'not found', type: params.type, status: 404})
+					}
+				}
+				else{
+					if(resp){
+						resp.json(this.docs[params.type])
+					}
+					else{
+						socket.emit('app.doc', this.docs[params.type])
+					}
+				}
+
+			}
+
+			this.removeEvent('docsComplete', send_docs)
+		}.bind(this)
+		/**
+		* check if this.docs is complete
+		**/
+		let complete = true
+		Array.each(this.docs, function(doc, index){
+			if(!this.options.params.type.test(doc.type))
+				complete = false
+		}.bind(this))
+
+		if(complete == true){
+			send_docs()
+		}
+		else{
+			this.addEvent('docsComplete', send_docs.bind(this))
+			this.pipeline.fireEvent('onOnce')
+
+		}
+    // let send_docs = function(docs){
+    //   //console.log('statsProcessed')
+    // 	resp.json({status: 'ok'})
+    //   this.removeEvent('onSaveDoc', send_docs)
+    // }
+    // this.addEvent('onSaveDoc', send_docs.bind(this))
+    //
+
+
+
+	},
 
   initialize: function(options){
 
@@ -100,10 +223,31 @@ var MyApp = new Class({
 
 		this.profile('root_init');//start profiling
 
-		const AppPipeline = require('./libs/pipelines/app')(require(ETC+'default.conn.js'), this.io)
+		const AppPipeline = require('./libs/pipelines/app')(require(ETC+'default.conn.js')(), this.io)
 
 		this.pipeline = new Pipeline(AppPipeline)
 
+		this.pipeline.addEvent('onSaveDoc', function(doc){
+			// console.log('onSaveDoc', doc)
+
+			if(doc.type && this.options.params.type.test(doc.type)){
+				this.docs[doc.type] = doc
+			}
+
+			/**
+			* check if this.docs is complete
+			**/
+			let complete = true
+			Array.each(this.docs, function(doc, index){
+				if(!this.options.params.type.test(doc.type))
+					complete = false
+			}.bind(this))
+
+			if(complete == true)
+				this.fireEvent('docsComplete')
+
+
+		}.bind(this))
 
 		this.express().set('authentication',this.authentication);
 
@@ -113,6 +257,7 @@ var MyApp = new Class({
 		this.log('root', 'info', 'root started');
   },
 	socket: function(socket){
+		// console.log('connected', socket)
 		this.parent(socket)
 
 		// //console.log('suspended', this.pipeline.inputs[0].options.suspended)

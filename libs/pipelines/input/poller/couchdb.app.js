@@ -3,6 +3,78 @@
 // const App = require ( '../../node_modules/node-app-couchdb-client/index' )
 const App = require ( 'node-app-couchdb-client/index' )
 
+const views = [
+  {
+    count_docs: function(req, next, app){
+      ////console.log('search_hosts', next)
+
+      // next(
+      app.view({
+        uri: app.options.db,
+        args: [
+          'sort',
+          'by_date',
+          {
+            // startkey: [start_key, app.options.stat_host, "periodical",Date.now() + 0],
+            // endkey: [end_key, app.options.stat_host, "periodical", Date.now() - 1000],
+            startkey: [Date.now() - 1000, "periodical"],
+            endkey: [Date.now(), "periodical\ufff0"],
+            // limit: 1,
+            // descending: true,
+            inclusive_end: true,
+            include_docs: false
+          }
+        ]
+      })
+      // )
+    }
+
+  },
+  {
+    search_hosts: function(req, next, app){
+      // console.log('search_hosts', next)
+
+      // next(
+      app.view({
+        uri: app.options.db,
+        args: [
+          'search',
+          'hosts',
+          {
+            //limit: 1,
+            reduce: true, //avoid geting duplicate host
+            group: true,
+
+          }
+        ]
+      })
+      // )
+    }
+  },
+  {
+    search_paths: function(req, next, app){
+      // console.log('search_paths', next)
+
+      // next(
+      app.view({
+        uri: app.options.db,
+        args: [
+          'search',
+          'paths',
+          {
+            //limit: 1,
+            reduce: true, //avoid geting duplicate host
+            group: true,
+
+          }
+        ]
+      })
+      // )
+    }
+  },
+]
+
+
 
 module.exports = new Class({
   Extends: App,
@@ -12,16 +84,15 @@ module.exports = new Class({
 
 
   options: {
-    couchdb: {
-      request: require('cachemachine')({redis: true, hostname: 'elk'})
-    },
-    
+
+
     // range: [
     //   Date.now() - 300000,
     //   Date.now()
     // ],
 
 		requests : {
+      once: Array.clone(views),
       // once: [
       //   {
 			// 		count_docs: function(req, next, app){
@@ -50,76 +121,7 @@ module.exports = new Class({
 			// 	},
       //
 			// ],
-			periodical: [
-        {
-          count_docs: function(req, next, app){
-            ////console.log('search_hosts', next)
-
-            // next(
-            app.view({
-              uri: app.options.db,
-              args: [
-                'sort',
-                'by_date',
-                {
-                  // startkey: [start_key, app.options.stat_host, "periodical",Date.now() + 0],
-                  // endkey: [end_key, app.options.stat_host, "periodical", Date.now() - 1000],
-                  startkey: [Date.now() - 1000, "periodical"],
-                  endkey: [Date.now(), "periodical\ufff0"],
-                  // limit: 1,
-                  // descending: true,
-                  inclusive_end: true,
-                  include_docs: false
-                }
-              ]
-            })
-            // )
-          }
-
-        },
-        {
-					search_hosts: function(req, next, app){
-            // console.log('search_hosts', next)
-
-						// next(
-            app.view({
-							uri: app.options.db,
-              args: [
-                'search',
-                'hosts',
-                {
-                  //limit: 1,
-                  reduce: true, //avoid geting duplicate host
-                  group: true,
-
-  							}
-              ]
-						})
-            // )
-					}
-				},
-        {
-					search_paths: function(req, next, app){
-            // console.log('search_paths', next)
-
-						// next(
-            app.view({
-							uri: app.options.db,
-              args: [
-                'search',
-                'paths',
-                {
-                  //limit: 1,
-                  reduce: true, //avoid geting duplicate host
-                  group: true,
-
-  							}
-              ]
-						})
-            // )
-					}
-				},
-			],
+			periodical: Array.clone(views)
 
 		},
 

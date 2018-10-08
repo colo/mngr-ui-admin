@@ -53,7 +53,11 @@ module.exports = function(conn, io){
   		function(doc){
         // console.log('output', doc)
 
-        io.volatile.emit('app.doc', doc)
+        /**
+        * continue emiting to all connected
+        */
+        if(io)
+          io.volatile.emit('app.doc', doc)
 
 
 
