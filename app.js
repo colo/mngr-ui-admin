@@ -223,7 +223,10 @@ var MyApp = new Class({
 
 		this.profile('root_init');//start profiling
 
-		const AppPipeline = require('./libs/pipelines/app')(require(ETC+'default.conn.js')(), this.io)
+		const AppPipeline = require('./libs/pipelines/app')(
+			require(ETC+'default.conn.js')(this.options.redis),
+			this.io
+		)
 
 		this.pipeline = new Pipeline(AppPipeline)
 
@@ -257,10 +260,11 @@ var MyApp = new Class({
 		this.log('root', 'info', 'root started');
   },
 	socket: function(socket){
-		// console.log('connected', socket)
+		console.log('connected')
 		this.parent(socket)
 
 		// //console.log('suspended', this.pipeline.inputs[0].options.suspended)
+
 		if(this.pipeline.inputs[0].options.suspended === true)
 			this.pipeline.fireEvent('onResume')
 

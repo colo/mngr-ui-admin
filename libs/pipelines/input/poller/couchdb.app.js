@@ -53,7 +53,7 @@ const views = [
   },
   {
     search_paths: function(req, next, app){
-      // console.log('search_paths', next)
+      console.log('search_paths', app.options.db)
 
       // next(
       app.view({
