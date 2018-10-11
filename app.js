@@ -46,7 +46,7 @@ var MyApp = new Class({
   Extends: App,
 
 	docs : {},
-	// docs_types: ['count', 'hosts', 'paths'],
+	docs_types: ['count', 'hosts', 'paths'],
 
 
 	pipeline: undefined,
@@ -86,6 +86,187 @@ var MyApp = new Class({
 
 		}
 	},
+	get: function(){
+		// console.log(arguments)
+		// console.log(this._arguments(arguments))
+		let {req, resp, socket, next, params} = this._arguments(arguments, ['type'])
+
+
+
+		console.log('get', params)
+
+		// if(req.params.type && )
+ // && this.docs.length == this.docs_type.length
+
+		let send_docs = function(docs){
+			console.log('send_docs', Object.values(docs))
+			if(params.type === null){
+				if(resp){
+					resp.status(500).json({error: 'wrong type param', status: 500})
+				}
+				else{
+					console.log('emiting')
+					socket.emit('app.doc', {error: 'wrong type param', status: 500})
+				}
+			}
+			else if(params.type === undefined){
+				if(resp){
+					resp.json(Object.values(docs))
+				}
+				else{
+					console.log('emiting')
+					socket.emit('app.doc', Object.values(docs))
+				}
+			}
+			else{
+
+				// let found = false
+				// Array.each(this.docs, function(doc, index){
+				// 	if(this.options.params.type.test(doc.type))
+				// 		found = index
+				// }.bind(this))
+
+				if(!this.docs[params.type]){
+					if(resp){
+						resp.status(404).json({error: 'not found', type: params.type, status: 404})
+					}
+					else{
+						socket.emit('app.doc', {error: 'not found', type: params.type, status: 404})
+					}
+				}
+				else{
+					if(resp){
+						resp.json(docs[params.type])
+					}
+					else{
+						socket.emit('app.doc', docs[params.type])
+					}
+				}
+
+			}
+
+			this.removeEvent('docsComplete', send_docs)
+		}.bind(this)
+		/**
+		* check if this.docs is complete
+		**/
+		// let complete = (Object.getLength(this.docs) > 0) ? true : false
+		// Object.each(this.docs, function(doc, type){
+		// 	if(!this.options.params.type.test(doc.type))
+		// 		complete = false
+		// }.bind(this))
+		let complete = true
+		Array.each(this.docs_types, function(type){
+			if(!this.docs[type])
+				complete = false
+		}.bind(this))
+
+		if(complete == true){
+			send_docs(Object.clone(this.docs))
+			this.docs = {}
+		}
+		else{
+			this.addEvent('docsComplete', send_docs)
+			this.pipeline.fireEvent('onOnce')
+
+		}
+    // let send_docs = function(docs){
+    //   //console.log('statsProcessed')
+    // 	resp.json({status: 'ok'})
+    //   this.removeEvent('onSaveDoc', send_docs)
+    // }
+    // this.addEvent('onSaveDoc', send_docs.bind(this))
+    //
+
+
+
+	},
+	initialize: function(options){
+
+
+		this.parent(options);//override default options
+
+		let io = require("socket.io")(server, {
+			transports: ['websocket', 'polling']
+		})
+		io.use(sharedsession(this.session))//move to middlewares?
+
+		this.add_io(io)
+
+		this.profile('root_init');//start profiling
+
+		const AppPipeline = require('./libs/pipelines/app')(
+			require(ETC+'default.conn.js')(this.options.redis),
+			this.io
+		)
+
+		this.pipeline = new Pipeline(AppPipeline)
+
+		this.addEvent('docsComplete', this._emit_docs.bind(this))
+
+		this.pipeline.addEvent('onSaveDoc', function(doc){
+			// console.log('onSaveDoc', doc)
+
+			if(doc.type && this.options.params.type.test(doc.type)){
+				// if(doc.type == 'path')
+				// 	console.log('TYPE PATH', doc)
+
+				this.docs[doc.type] = doc
+			}
+
+			/**
+			* check if this.docs is complete
+			**/
+			// let complete = (Object.getLength(this.docs) > 0) ? true : false
+			// Object.each(this.docs, function(doc, type){
+			// 	if(!this.options.params.type.test(doc.type))
+			// 		complete = false
+			// }.bind(this))
+			let complete = true
+			Array.each(this.docs_types, function(type){
+				if(!this.docs[type])
+					complete = false
+			}.bind(this))
+
+			if(complete == true){
+				this.fireEvent('docsComplete', Object.clone(this.docs))
+				this.docs = {}
+			}
+
+
+		}.bind(this))
+
+		this.express().set('authentication',this.authentication);
+
+		// //console.log('PATH', this.options.path)
+		this.profile('root_init');//end profiling
+
+		this.log('root', 'info', 'root started');
+  },
+	socket: function(socket){
+		console.log('connected')
+		this.parent(socket)
+
+		// //console.log('suspended', this.pipeline.inputs[0].options.suspended)
+
+		if(this.pipeline.inputs[0].options.suspended === true)
+			this.pipeline.fireEvent('onResume')
+
+    //
+		// //console.log('this.io.namespace.connected', Object.keys(this.io.connected))
+    //
+		socket.on('disconnect', function () {
+			if(!this.io.connected || Object.keys(this.io.connected).length == 0)
+				this.pipeline.fireEvent('onSuspend')
+
+			//console.log('disconnect this.io.namespace.connected', this.io.connected)
+		}.bind(this));
+	},
+	_emit_docs: function(docs){
+		console.log('broadcast docs...', Object.values(docs))
+		// socket.emit('app.doc', Object.values(this.docs))
+		this.io.volatile.emit('app.doc', Object.values(docs))
+	},
 	_arguments: function(args, defined_params){
 		let req, resp, next, socket = undefined
     // console.log(typeof args[0])
@@ -119,166 +300,6 @@ var MyApp = new Class({
 
 		return {req:req, resp:resp, socket:socket, next:next, params: params}
 	},
-	get: function(){
-		// console.log(arguments)
-		// console.log(this._arguments(arguments))
-		let {req, resp, socket, next, params} = this._arguments(arguments, ['type'])
-
-
-
-		console.log('get', params)
-
-		// if(req.params.type && )
- // && this.docs.length == this.docs_type.length
-
-		let send_docs = function(){
-			console.log('send_docs', this.docs)
-			if(params.type === null){
-				if(resp){
-					resp.status(500).json({error: 'wrong type param', status: 500})
-				}
-				else{
-					console.log('emiting')
-					socket.emit('app.doc', {error: 'wrong type param', status: 500})
-				}
-			}
-			else if(params.type === undefined){
-				if(resp){
-					resp.json(Object.values(this.docs))
-				}
-				else{
-					console.log('emiting')
-					socket.emit('app.doc', Object.values(this.docs))
-				}
-			}
-			else{
-
-				// let found = false
-				// Array.each(this.docs, function(doc, index){
-				// 	if(this.options.params.type.test(doc.type))
-				// 		found = index
-				// }.bind(this))
-
-				if(!this.docs[params.type]){
-					if(resp){
-						resp.status(404).json({error: 'not found', type: params.type, status: 404})
-					}
-					else{
-						socket.emit('app.doc', {error: 'not found', type: params.type, status: 404})
-					}
-				}
-				else{
-					if(resp){
-						resp.json(this.docs[params.type])
-					}
-					else{
-						socket.emit('app.doc', this.docs[params.type])
-					}
-				}
-
-			}
-
-			this.removeEvent('docsComplete', send_docs)
-		}.bind(this)
-		/**
-		* check if this.docs is complete
-		**/
-		let complete = true
-		Array.each(this.docs, function(doc, index){
-			if(!this.options.params.type.test(doc.type))
-				complete = false
-		}.bind(this))
-
-		if(complete == true){
-			send_docs()
-		}
-		else{
-			this.addEvent('docsComplete', send_docs.bind(this))
-			this.pipeline.fireEvent('onOnce')
-
-		}
-    // let send_docs = function(docs){
-    //   //console.log('statsProcessed')
-    // 	resp.json({status: 'ok'})
-    //   this.removeEvent('onSaveDoc', send_docs)
-    // }
-    // this.addEvent('onSaveDoc', send_docs.bind(this))
-    //
-
-
-
-	},
-
-  initialize: function(options){
-
-
-		this.parent(options);//override default options
-
-		let io = require("socket.io")(server, {
-			transports: ['websocket', 'polling']
-		})
-		io.use(sharedsession(this.session))//move to middlewares?
-
-		this.add_io(io)
-
-		this.profile('root_init');//start profiling
-
-		const AppPipeline = require('./libs/pipelines/app')(
-			require(ETC+'default.conn.js')(this.options.redis),
-			this.io
-		)
-
-		this.pipeline = new Pipeline(AppPipeline)
-
-		this.pipeline.addEvent('onSaveDoc', function(doc){
-			// console.log('onSaveDoc', doc)
-
-			if(doc.type && this.options.params.type.test(doc.type)){
-				this.docs[doc.type] = doc
-			}
-
-			/**
-			* check if this.docs is complete
-			**/
-			let complete = true
-			Array.each(this.docs, function(doc, index){
-				if(!this.options.params.type.test(doc.type))
-					complete = false
-			}.bind(this))
-
-			if(complete == true)
-				this.fireEvent('docsComplete')
-
-
-		}.bind(this))
-
-		this.express().set('authentication',this.authentication);
-
-		// //console.log('PATH', this.options.path)
-		this.profile('root_init');//end profiling
-
-		this.log('root', 'info', 'root started');
-  },
-	socket: function(socket){
-		console.log('connected')
-		this.parent(socket)
-
-		// //console.log('suspended', this.pipeline.inputs[0].options.suspended)
-
-		if(this.pipeline.inputs[0].options.suspended === true)
-			this.pipeline.fireEvent('onResume')
-
-    //
-		// //console.log('this.io.namespace.connected', Object.keys(this.io.connected))
-    //
-		socket.on('disconnect', function () {
-			if(!this.io.connected || Object.keys(this.io.connected).length == 0)
-				this.pipeline.fireEvent('onSuspend')
-
-			//console.log('disconnect this.io.namespace.connected', this.io.connected)
-		}.bind(this));
-	},
-
 
 });
 

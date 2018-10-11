@@ -36,32 +36,44 @@ module.exports = function(conn, io){
   		},
 
   	],
-  	// filters: [
-  	// 	function(doc, opts, next){
-    //
-  	// 		// console.log('search_pipeline ', doc)
-    //
-  	// 		buffer = Object.merge(buffer, doc.data)
-    //
-  	// 		if(buffer.hosts && buffer.paths){
-  	// 			next(buffer)
-  	// 			buffer = {}
-  	// 		}
-  	// 	}
-  	// ],
+  	filters: [
+  		// function(doc, opts, next){
+      //
+  		// 	// console.log('search_pipeline ', doc)
+      //
+  		// 	buffer = Object.merge(buffer, doc.data)
+      //
+  		// 	if(buffer.hosts && buffer.paths){
+  		// 		next(buffer)
+  		// 		buffer = {}
+  		// 	}
+  		// }
+      function(doc, opts, next){
+        // console.log('FILTER',doc)
+
+        //transform path the same way "extract_data_os" does
+        if(doc && doc.type == 'paths'){
+          Array.each(doc.value, function(value, index){
+            doc.value[index] = value.replace(/\./g, '_')
+          })
+        }
+
+        next(doc)
+      }
+  	],
   	output: [
-  		function(doc){
-        // console.log('output', doc)
-
-        /**
-        * continue emiting to all connected
-        */
-        if(io)
-          io.volatile.emit('app.doc', doc)
-
-
-
-  		}
+  	// 	function(doc){
+    //     // console.log('output', doc)
+    //
+    //     /**
+    //     * continue emiting to all connected
+    //     */
+    //     if(io)
+    //       io.volatile.emit('app.doc', doc)
+    //
+    //
+    //
+  	// 	}
   	]
   }
 
