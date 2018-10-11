@@ -3,6 +3,15 @@
 // const App = require ( '../../node_modules/node-app-couchdb-client/index' )
 const App = require ( 'node-app-couchdb-client/index' )
 
+const roundMilliseconds = function(timestamp){
+  let d = new Date(timestamp)
+  d.setMilliseconds(0)
+
+  // console.log('roundMilliseconds', d.getTime())
+  return d.getTime()
+}
+
+
 const views = [
   {
     count_docs: function(req, next, app){
@@ -17,8 +26,8 @@ const views = [
           {
             // startkey: [start_key, app.options.stat_host, "periodical",Date.now() + 0],
             // endkey: [end_key, app.options.stat_host, "periodical", Date.now() - 1000],
-            startkey: [Date.now() - 1000, "periodical"],
-            endkey: [Date.now(), "periodical\ufff0"],
+            startkey: [roundMilliseconds(Date.now() - 1000), "periodical"],
+            endkey: [roundMilliseconds(Date.now()), "periodical\ufff0"],
             // limit: 1,
             // descending: true,
             inclusive_end: true,
