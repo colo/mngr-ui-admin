@@ -269,7 +269,7 @@ var MyApp = new Class({
 	},
 	_arguments: function(args, defined_params){
 		let req, resp, next, socket = undefined
-    // console.log(typeof args[0])
+    // //console.log(typeof args[0])
 		if(args[0]._readableState){//express
 			req = args[0]
 			resp = args[1]
@@ -285,8 +285,9 @@ var MyApp = new Class({
 			params = req.params
 		}
 		else{
-      // console.log('socket', args)
-      if(defined_params){
+      // //console.log('socket', args)
+      let isObject = (args[2] !== null && typeof args[2] === 'object' && isNaN(args[2]) && !Array.isArray(args[2])) ? true: false
+      if(defined_params && isObject == false){
         Array.each(defined_params, function(name, index){
           params[name] = args[index + 2]
         })
