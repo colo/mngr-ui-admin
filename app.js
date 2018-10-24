@@ -263,7 +263,7 @@ var MyApp = new Class({
 		}.bind(this));
 	},
 	_emit_docs: function(docs){
-		console.log('broadcast docs...', Object.values(docs))
+		// console.log('broadcast docs...', Object.values(docs))
 		// socket.emit('app.doc', Object.values(this.docs))
 		this.io.volatile.emit('app.doc', Object.values(docs))
 	},
