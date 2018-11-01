@@ -189,7 +189,9 @@ var MyApp = new Class({
 		let io = require("socket.io")(server, {
 			transports: ['websocket', 'polling']
 		})
-		io.use(sharedsession(this.session))//move to middlewares?
+		io.use(sharedsession(this.session, {
+		    autoSave:true
+		}))//move to middlewares?
 
 		this.add_io(io)
 
