@@ -21,7 +21,7 @@ module.exports = new Class({
   Extends: BaseApp,
 
   options: {
-		redis: true,
+		redis: false,
 		//middlewares: [req_limit.ip(), req_limit.user()],
 		//middlewares: [req_limit.ip(), req_max.ip()],
 		//middlewares: [req_limit.user()],

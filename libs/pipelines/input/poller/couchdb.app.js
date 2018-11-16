@@ -21,7 +21,7 @@ const views = [
       app.view({
         uri: app.options.db,
         args: [
-          'sort',
+          'docs',
           'by_date',
           {
             // startkey: [start_key, app.options.stat_host, "periodical",Date.now() + 0],
@@ -81,6 +81,20 @@ const views = [
       // )
     }
   },
+  // {
+  //   changes: function(req, next, app){
+  //     console.log('follow')
+  //     app.follow({
+  //       uri: app.options.db,
+  //       args: [{
+  //         since: "now",
+  //         include_docs:true,
+  //         // seq_interval: 2
+  //         // view: "docs/_view/by_date"
+  //       }]
+  //     })
+  //   }
+  // }
 ]
 
 
@@ -148,19 +162,28 @@ module.exports = new Class({
 					callbacks: ['view'],
 					//version: '',
 				},
-			]
+			],
+      // follow: [
+			// 	{
+			// 		path: ':database',
+			// 		callbacks: ['follow'],
+			// 		//version: '',
+			// 	},
+			// ]
 		},
 
 
   },
-
+  // follow: function(err, resp, view){
+	// 	console.log('follow ', err, resp, view.options.args);
+  // },
   view: function(err, resp, view){
 		// console.log('count.view ', resp, view.options.args);
 
 		if(err){
 			////////console.log('this.sort_by_path error %o', err);
 		}
-    else if (view.options.args[0] == 'sort' && view.options.args[1] == 'by_date') {
+    else if (view.options.args[0] == 'docs' && view.options.args[1] == 'by_date') {
       this.fireEvent('onPeriodicalDoc', [{type: 'count', value: resp.rows.length }, {type: 'periodical', input_type: this, app: null}]);
     }
     else{
