@@ -22,7 +22,7 @@ const views = [
 
       app.between({
         _extras: 'count',
-        uri: app.options.db+'/live',
+        uri: app.options.db+'/periodical',
         args: [
           roundMilliseconds(Date.now() - 1000),
           roundMilliseconds(Date.now()),
@@ -62,7 +62,7 @@ const views = [
 
       app.between({
         _extras: 'host',
-        uri: app.options.db+'/live',
+        uri: app.options.db+'/periodical',
         args: [
           roundMilliseconds(Date.now() - 1000),
           roundMilliseconds(Date.now()),
@@ -102,7 +102,7 @@ const views = [
 
       app.between({
         _extras: 'path',
-        uri: app.options.db+'/live',
+        uri: app.options.db+'/periodical',
         args: [
           roundMilliseconds(Date.now() - 1000),
           roundMilliseconds(Date.now()),
