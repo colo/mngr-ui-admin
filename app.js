@@ -198,7 +198,8 @@ var MyApp = new Class({
 		this.profile('root_init');//start profiling
 
 		const AppPipeline = require('./libs/pipelines/app')(
-			require(ETC+'default.conn.js')(this.options.redis),
+			// require(ETC+'default.conn.js')(this.options.redis),//couchdb
+			require(ETC+'default.conn.js')(),//rethinkdb
 			this.io
 		)
 

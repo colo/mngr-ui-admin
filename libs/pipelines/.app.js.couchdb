@@ -1,6 +1,6 @@
 'use strict'
 
-const InputPollerRethinkDBApp = require ( './input/poller/rethinkdb.app.js' )
+const InputPollerCouchDBApp = require ( './input/poller/couchdb.app.js' )
 
 let cron = require('node-cron')
 
@@ -16,7 +16,7 @@ module.exports = function(conn, io){
               Object.clone(conn),
               {
                 id: 'input.docs',
-                module: InputPollerRethinkDBApp,
+                module: InputPollerCouchDBApp,
               }
             )
 
