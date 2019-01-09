@@ -60,81 +60,53 @@ const views = [
     search_hosts: function(req, next, app){
       debug_internals('search_hosts', app.options)
 
-      app.between({
-        _extras: 'host',
-        uri: app.options.db+'/periodical',
-        args: [
-          roundMilliseconds(Date.now() - 1000),
-          roundMilliseconds(Date.now()),
-          {
-            index: 'timestamp',
-            leftBound: 'open',
-            rightBound: 'open'
-          }
-        ]
-      })
-      // app.distinct({
-      //   _extras: 'hosts',
-      //   uri: app.options.db+'/live',
-      //   args: {index: 'host'}
-      // })
-
-      // next(
-      // app.view({
-      //   uri: app.options.db,
+      // app.between({
+      //   _extras: 'host',
+      //   uri: app.options.db+'/periodical',
       //   args: [
-      //     'search',
-      //     'hosts',
+      //     roundMilliseconds(Date.now() - 1000),
+      //     roundMilliseconds(Date.now()),
       //     {
-      //       //limit: 1,
-      //       reduce: true, //avoid geting duplicate host
-      //       group: true,
-      //
+      //       index: 'timestamp',
+      //       leftBound: 'open',
+      //       rightBound: 'open'
       //     }
       //   ]
       // })
-      // )
+      app.distinct({
+        _extras: 'hosts',
+        uri: app.options.db+'/periodical',
+        args: {index: 'host'}
+      })
+
+
     }
   },
   {
     search_paths: function(req, next, app){
       debug_internals('search_paths', app.options)
 
-      app.between({
-        _extras: 'path',
-        uri: app.options.db+'/periodical',
-        args: [
-          roundMilliseconds(Date.now() - 1000),
-          roundMilliseconds(Date.now()),
-          {
-            index: 'timestamp',
-            leftBound: 'open',
-            rightBound: 'open'
-          }
-        ]
-      })
-
-      // app.distinct({
-      //   _extras: 'paths',
-      //   uri: app.options.db+'/live',
-      //   args: {index: 'path'}
-      // })
-
-      // next(
-      // app.view({
-      //   uri: app.options.db,
+      // app.between({
+      //   _extras: 'path',
+      //   uri: app.options.db+'/periodical',
       //   args: [
-      //     'search',
-      //     'paths',
+      //     roundMilliseconds(Date.now() - 1000),
+      //     roundMilliseconds(Date.now()),
       //     {
-      //       //limit: 1,
-      //       reduce: true, //avoid geting duplicate host
-      //       group: true,
-      //
+      //       index: 'timestamp',
+      //       leftBound: 'open',
+      //       rightBound: 'open'
       //     }
       //   ]
       // })
-      // )
+
+      app.distinct({
+        _extras: 'paths',
+        uri: app.options.db+'/periodical',
+        args: {index: 'path'}
+      })
+
+
     }
   },
   // {
@@ -209,10 +181,10 @@ module.exports = new Class({
         path: ':database/:table',
         callbacks: ['between']
       }],
-      // distinct: [{
-      //   path: ':database/:table',
-      //   callbacks: ['distinct']
-      // }],
+      distinct: [{
+        path: ':database/:table',
+        callbacks: ['distinct']
+      }],
 
 			// request: [
 			// 	{
@@ -278,26 +250,26 @@ module.exports = new Class({
     // debug_internals('count', this.r.count(resp))
 
   },
-  // distinct: function(err, resp, params){
-  //   // debug_internals('distinct', arguments)
-  //   // // resp.each(function(err, row) {
-  //   // //     if (err) throw err;
-  //   // //     debug_internals('between', row)
-  //   // // });
-  //   //
-  //
-  //   resp.toArray(function(err, arr){
-  //     debug_internals('distinct', err, arr)
-  //
-  //     this.fireEvent('onPeriodicalDoc', [{type: params.options._extras, value: arr }, {type: 'periodical', input_type: this, app: null}]);
-  //
-  //
-  //   }.bind(this))
-  //
-  //   //
-  //   // // debug_internals('count', this.r.count(resp))
-  //
-  // },
+  distinct: function(err, resp, params){
+    debug_internals('distinct', resp)
+    // // resp.each(function(err, row) {
+    // //     if (err) throw err;
+    // //     debug_internals('between', row)
+    // // });
+    //
+
+    resp.toArray(function(err, arr){
+      debug_internals('distinct', err, arr)
+
+      this.fireEvent('onPeriodicalDoc', [{type: params.options._extras, value: arr }, {type: 'periodical', input_type: this, app: null}]);
+
+
+    }.bind(this))
+
+    //
+    // // debug_internals('count', this.r.count(resp))
+
+  },
   // view: function(err, resp, view){
 	// 	// console.log('count.view ', resp, view.options.args);
   //
