@@ -8,6 +8,7 @@
  * */
 var	path = require('path'),
 		debug = require('debug')(process.env.npm_package_name || 'Server'),
+		debug_internals = require('debug')((process.env.npm_package_name) ? process.env.npm_package_name + ':Internals' : 'Server:Internals'),
 		http = require('http'),
 		express = require('express');
 
@@ -87,13 +88,13 @@ var MyApp = new Class({
 		}
 	},
 	get: function(){
-		// console.log(arguments)
-		// console.log(this._arguments(arguments))
 		let {req, resp, socket, next, params} = this._arguments(arguments, ['type'])
+		let session = (socket) ? socket.handshake.session : req.session
+		debug_internals('get %o', session)
 
 
 
-		console.log('get', params)
+		// console.log('get', params)
 
 		// if(req.params.type && )
  // && this.docs.length == this.docs_type.length
@@ -105,7 +106,7 @@ var MyApp = new Class({
 					resp.status(500).json({error: 'wrong type param', status: 500})
 				}
 				else{
-					console.log('emiting')
+					// console.log('emiting')
 					socket.emit('app.doc', {error: 'wrong type param', status: 500})
 				}
 			}
@@ -114,7 +115,7 @@ var MyApp = new Class({
 					resp.json(Object.values(docs))
 				}
 				else{
-					console.log('emiting')
+					// console.log('emiting')
 					socket.emit('app.doc', Object.values(docs))
 				}
 			}
@@ -245,6 +246,8 @@ var MyApp = new Class({
 		this.profile('root_init');//end profiling
 
 		this.log('root', 'info', 'root started');
+
+		debug_internals('session %o', this.session)
   },
 	socket: function(socket){
 		console.log('connected')
