@@ -93,7 +93,7 @@ var MyApp = new Class({
 
 
 
-		console.log('get', params)
+		// console.log('get', params)
 
 		// if(req.params.type && )
  // && this.docs.length == this.docs_type.length
