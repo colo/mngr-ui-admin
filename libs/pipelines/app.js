@@ -29,7 +29,7 @@ module.exports = function(conn, io){
           requests: {
       			periodical: function(dispatch){
   						// //////////console.log('host periodical running')
-      				return cron.schedule('*/10 * * * * *', dispatch);//every 5 seconds
+      				return cron.schedule('*/10 * * * * *', dispatch);//every 10 seconds
       			}
       		},
   			},
