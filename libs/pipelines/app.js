@@ -4,6 +4,10 @@ const InputPollerRethinkDBApp = require ( './input/poller/rethinkdb.app.js' )
 
 let cron = require('node-cron')
 
+let debug = require('debug')('mngr-ui-admin:libs:Pipelines:app'),
+    debug_events = require('debug')('mngr-ui-admin:libs:Pipelines:app:Events'),
+    debug_internals = require('debug')('mngr-ui-admin:libs:Pipelines:app:Internals');
+
 module.exports = function(conn, io){
   let conf = {
   	input: [

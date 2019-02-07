@@ -8,6 +8,7 @@
  * */
 var	path = require('path'),
 		debug = require('debug')(process.env.npm_package_name || 'Server'),
+		debug_internals = require('debug')(process.env.npm_package_name+':Internals' || 'Server:Internals'),
 		http = require('http'),
 		express = require('express');
 
@@ -41,6 +42,10 @@ const ETC =  process.env.NODE_ENV === 'production'
 
 let Pipeline = require('js-pipeline')
 
+// let RthnkDBClient = require ( 'node-app-rethinkdb-client/index' )
+// let rthnk_conn = require ( path.join(process.cwd(), './libs/rethinkdb_conn.js') )(
+// 	require(ETC+'default.conn.js')()
+// )
 
 var MyApp = new Class({
   Extends: App,
@@ -197,9 +202,9 @@ var MyApp = new Class({
 
 		this.profile('root_init');//start profiling
 
+
 		const AppPipeline = require('./libs/pipelines/app')(
-			// require(ETC+'default.conn.js')(this.options.redis),//couchdb
-			require(ETC+'default.conn.js')(),//rethinkdb
+			require(ETC+'default.conn.js')(this.options.redis),//couchdb
 			this.io
 		)
 
