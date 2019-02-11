@@ -18,6 +18,8 @@ let express_app = express()
  */
 
 var port = normalizePort(process.env.PORT || process.env.npm_package_config_port || '3000');
+var host = process.env.HOST || process.env.npm_package_config_host || 'localhost';
+
 express_app.set('port', port);
 
 /**
@@ -324,7 +326,11 @@ root.addEvent(root.ON_INIT, root.load(path.join(__dirname, '/apps')));
  * Listen on provided port, on all network interfaces.
  */
 
-server.listen(port);
+server.listen({
+    host: host,
+    port: port
+});
+
 server.on('error', onError);
 server.on('listening', onListening);
 
