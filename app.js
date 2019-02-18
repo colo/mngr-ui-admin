@@ -194,7 +194,9 @@ var MyApp = new Class({
 		this.parent(options);//override default options
 
 		let io = require("socket.io")(server, {
-			transports: ['websocket', 'polling']
+			transports: ['websocket', 'polling'],
+			pingInterval: 5000,
+  		pingTimeout: 5000
 		})
 		io.use(sharedsession(this.session, {
 		    autoSave:true
