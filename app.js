@@ -196,7 +196,7 @@ var MyApp = new Class({
 		let io = require("socket.io")(server, {
 			transports: ['websocket', 'polling'],
 			// pingInterval: 10000,
-  		// pingTimeout: 10000
+  		pingTimeout: 60000
 		})
 		io.use(sharedsession(this.session, {
 		    autoSave:true
