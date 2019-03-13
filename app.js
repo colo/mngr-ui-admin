@@ -195,8 +195,8 @@ var MyApp = new Class({
 
 		let io = require("socket.io")(server, {
 			transports: ['websocket', 'polling'],
-			// pingInterval: 10000,
-  		pingTimeout: 60000
+			pingInterval: 1000,
+  		pingTimeout: 5000
 		})
 		io.use(sharedsession(this.session, {
 		    autoSave:true
@@ -255,25 +255,26 @@ var MyApp = new Class({
 
 		this.log('root', 'info', 'root started');
   },
-	// socket: function(socket){
-	// 	console.log('connected')
-	// 	this.parent(socket)
-  //
-	// 	// //console.log('suspended', this.pipeline.inputs[0].options.suspended)
-  //
-	// 	if(this.pipeline.inputs[0].options.suspended === true)
-	// 		this.pipeline.fireEvent('onResume')
-  //
-  //   //
-	// 	// //console.log('this.io.namespace.connected', Object.keys(this.io.connected))
-  //   //
-	// 	socket.on('disconnect', function () {
-	// 		if(!this.io.connected || Object.keys(this.io.connected).length == 0)
-	// 			this.pipeline.fireEvent('onSuspend')
-  //
-	// 		//console.log('disconnect this.io.namespace.connected', this.io.connected)
-	// 	}.bind(this));
-	// },
+	socket: function(socket){
+		debug_internals('socket.io connect', socket.id)
+		this.parent(socket)
+
+		// // //console.log('suspended', this.pipeline.inputs[0].options.suspended)
+    //
+		// if(this.pipeline.inputs[0].options.suspended === true)
+		// 	this.pipeline.fireEvent('onResume')
+    //
+    // //
+		// // //console.log('this.io.namespace.connected', Object.keys(this.io.connected))
+    // //
+		socket.on('disconnect', function () {
+			debug_internals('socket.io disconnect', socket.id)
+			// if(!this.io.connected || Object.keys(this.io.connected).length == 0)
+			// 	this.pipeline.fireEvent('onSuspend')
+      //
+			// //console.log('disconnect this.io.namespace.connected', this.io.connected)
+		}.bind(this));
+	},
 	_emit_docs: function(docs){
 		// console.log('broadcast docs...', Object.values(docs))
 		// socket.emit('app.doc', Object.values(this.docs))
