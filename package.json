@@ -24,6 +24,7 @@
     "mootools": "^1.5.2",
     "multer": "^1.1.0",
     "node-app-couchdb-client": "git+https://github.com/colo/node-app-couchdb-client.git",
+    "node-app-http-client": "git+https://github.com/colo/node-app-http-client.git",
     "node-app-rethinkdb-client": "git+https://github.com/colo/node-app-rethinkdb-client.git",
     "node-cron": "^1.2.1",
     "node-express-app": "git+https://github.com/colo/node-express-app.git",
