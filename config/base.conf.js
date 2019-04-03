@@ -29,7 +29,8 @@ module.exports = new Class({
   authentication: null,
 
 	options: {
-		on_demand: true,
+		on_demand: false,
+		
 		// session: {
 		// 	store: new MemoryStore(),
 		// 	// store: new MemoryStore({
