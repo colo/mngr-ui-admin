@@ -49,6 +49,9 @@ let Pipeline = require('js-pipeline')
 // 	require(ETC+'default.conn.js')()
 // )
 
+let session = require('express-session');
+let RedisStore = require('connect-redis')(session);
+
 var MyApp = new Class({
   Extends: App,
 
@@ -189,7 +192,18 @@ var MyApp = new Class({
 
 	},
 	initialize: function(options){
-
+		this.options.session = session({
+				store: new RedisStore({
+					checkPeriod: 3600000, // prune expired entries every hour
+					host:  'elk'
+				}),
+				cookie: { path: '/', httpOnly: true, maxAge: null, secure: false },
+				secret: '19qX9cZ3yvjsMWRiZqOn',
+				resave: true,
+				saveUninitialized: true,
+				name: 'mngr.api',
+				unset: 'destroy'
+		});
 
 		this.parent(options);//override default options
 

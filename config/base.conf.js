@@ -9,7 +9,8 @@ var	os = require('os'),
 		bodyParser = require('body-parser'),
 		//multer = require('multer'), // v1.0.5
 		//upload = multer(), // for parsing multipart/form-data
-		cors = require('cors');
+		cors = require('cors'),
+		compression = require('compression');
 
 // let session = require('express-session')
 // let MemoryStore = require('memorystore')(session)
@@ -30,7 +31,7 @@ module.exports = new Class({
 
 	options: {
 		on_demand: false,
-		
+
 		// session: {
 		// 	store: new MemoryStore(),
 		// 	// store: new MemoryStore({
@@ -107,6 +108,7 @@ module.exports = new Class({
 		// },
 
 	  middlewares: [
+			compression(),
 			bodyParser.json(),
 			bodyParser.urlencoded({ extended: true }),
 			cors({
