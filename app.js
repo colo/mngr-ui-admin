@@ -199,7 +199,7 @@ var MyApp = new Class({
 				cookie: { path: '/', httpOnly: true, maxAge: null, secure: false },
 				secret: '19qX9cZ3yvjsMWRiZqOn',
 				resave: true,
-				saveUninitialized: true,
+				saveUninitialized: false,
 				name: 'mngr.api',
 				unset: 'destroy'
 		});
