@@ -193,10 +193,9 @@ var MyApp = new Class({
 	},
 	initialize: function(options){
 		this.options.session = session({
-				store: new RedisStore({
-					checkPeriod: 3600000, // prune expired entries every hour
-					host:  'elk'
-				}),
+				store: new RedisStore(
+					Object.clone(require(ETC+'default.redis.js'))
+				),
 				cookie: { path: '/', httpOnly: true, maxAge: null, secure: false },
 				secret: '19qX9cZ3yvjsMWRiZqOn',
 				resave: true,
