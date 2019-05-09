@@ -147,28 +147,28 @@ module.exports = new Class({
 			]
 		},
 
-	// 	api: {
-  //
-	// 		version: '1.0.0',
-  //
-	// 		routes: {
-	// 			get: [
-	// 				{
-	// 					path: '',
-	// 					callbacks: ['get'],
-	// 					version: '',
-	// 				},
-	// 			],
-	// 			all: [
-	// 				{
-	// 					path: '',
-	// 					callbacks: ['404'],
-	// 					version: '',
-	// 				},
-	// 			]
-	// 		},
-  //
-	// 	},
+		// api: {
+    //
+		// 	version: '1.0.0',
+    //
+		// 	routes: {
+		// 		// get: [
+		// 		// 	{
+		// 		// 		path: '',
+		// 		// 		callbacks: ['get'],
+		// 		// 		version: '',
+		// 		// 	},
+		// 		// ],
+		// 		all: [
+		// 			{
+		// 				path: '',
+		// 				callbacks: ['404'],
+		// 				version: '',
+		// 			},
+		// 		]
+		// 	},
+    //
+		// },
   },
 
 });

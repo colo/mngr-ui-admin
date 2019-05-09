@@ -56,13 +56,13 @@ var MyApp = new Class({
   Extends: App,
 
 	docs : {},
-	docs_types: ['count', 'hosts', 'paths'],
+	// docs_types: ['count', 'hosts', 'paths'],
 
 
 	// pipeline: undefined,
 
 	options: {
-		path: '/_app',
+		// path: '/_app',
 
 		params: {
 			// type: /count|hosts|paths/,
