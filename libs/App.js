@@ -11,6 +11,7 @@ const ETC =  process.env.NODE_ENV === 'production'
       : path.join(process.cwd(), '/devel/etc/')
 
 const jscaching = require('js-caching')
+const Pipeline = require('js-pipeline')
 
 let debug = require('debug')('mngr-ui-admin:libs:App'),
     debug_internals = require('debug')('mngr-ui-admin:libs:App:Internals');
@@ -127,7 +128,8 @@ module.exports = new Class({
   			if(verb != 'all'){
   				Array.each(routes, function(route){
   					//debug('route: ' + verb);
-  					route.callbacks.unshift('__process_session');
+            route.callbacks.unshift('__process_pipeline')
+  					route.callbacks.unshift('__process_session')
             // route.callbacks.push('test');
             //
   					// if(verb == 'get')//users can "read" info
@@ -145,6 +147,7 @@ module.exports = new Class({
   			if(verb != 'all'){
   				Array.each(routes, function(route){
   					//debug('route: ' + verb);
+            route.callbacks.unshift('__process_pipeline')
   					route.callbacks.unshift('__process_session');
             //
   					// if(verb == 'get')//users can "read" info
@@ -181,11 +184,30 @@ module.exports = new Class({
 
 		this.log('mngr-ui-admin-app', 'info', 'mngr-ui-admin-app started');
   },
-  get_pipeline: function(){
-    let { id, cb } = (
-      arguments[0]
-      && typeof arguments[0] === 'function'
-    ) ? {id: undefined, cb: arguments[0]} : {id: arguments[0], cb: arguments[1]}
+  get_pipeline: function(id, cb){
+    if(id){
+      if(this.__pipeline.inputs.length != this.__pipeline_cnf.connected.length){
+          this.__after_connect_inputs(
+            this.__resume_pipeline.pass([this.__pipeline, this.__pipeline_cnf, id, cb.pass(this.__pipeline)], this)
+          )
+      }
+      else{
+        this.__resume_pipeline(this.__pipeline, this.__pipeline_cnf, id, cb.pass(this.__pipeline))
+      }
+    }
+    else{
+      cb(this.__pipeline)
+    }
+  },
+  __process_pipeline: function(){
+    let {req, resp, socket, next, params} = this._arguments(arguments)
+    let id = (socket) ? socket.id : undefined
+
+    debug_internals('__process_pipeline', id)
+    // let { id, cb } = (
+    //   arguments[0]
+    //   && typeof arguments[0] === 'function'
+    // ) ? {id: undefined, cb: arguments[0]} : {id: arguments[0], cb: arguments[1]}
 
     if(!this.__pipeline){
 
@@ -210,31 +232,21 @@ module.exports = new Class({
       }
 
       this.__after_connect_inputs(
-        this.__resume_pipeline.pass([this.pipeline, this.__pipeline_cnf, id, cb], this)
+        this.__resume_pipeline.pass([this.__pipeline, this.__pipeline_cnf, id, next], this)
       )
 
     }
-    else if(!id){
-      cb(this.pipeline)
-    }
-    else{
-        if(this.pipeline.hosts.inputs.length != this.pipeline.connected.length){
+    // else if(!id){
+    //   cb(this.pipeline)
+    // }
+    else if(id){
+      if(this.__pipeline.inputs.length != this.__pipeline_cnf.connected.length){
           this.__after_connect_inputs(
-            this.__resume_pipeline.pass([this.pipeline, this.__pipeline_cnf, id, cb], this)
-            // this.__after_connect_pipeline(
-            //   this.pipeline,
-            //   id,
-            //   cb
-            // )
+            this.__resume_pipeline.pass([this.__pipeline, this.__pipeline_cnf, id, next], this)
           )
-        // this.pipeline.hosts.inputs[0].conn_pollers[0].addEvent('onConnect', () => this.__after_connect_pipeline(
-        //   this.pipeline,
-        //   id,
-        //   cb
-        // ))
       }
       else{
-        this.__resume_pipeline(this.pipeline, this.__pipeline_cnf, id, cb)
+        this.__resume_pipeline(this.__pipeline, this.__pipeline_cnf, id, next)
       }
     }
 
@@ -258,7 +270,7 @@ module.exports = new Class({
     }.bind(this))
   },
   __resume_pipeline: function(pipeline, cfg, id, cb){
-    debug_internals('__resume_pipeline', pipeline, cfg, id, cb)
+    debug_internals('__resume_pipeline', pipeline, cfg, id)
 
     if(id){
       if(!cfg.ids.contains(id))
@@ -290,7 +302,7 @@ module.exports = new Class({
     }
 
     if(cb)
-      cb(pipeline)
+      cb()
 
   },
   // test: function(){
