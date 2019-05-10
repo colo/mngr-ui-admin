@@ -10,6 +10,8 @@ const ETC =  process.env.NODE_ENV === 'production'
       ? path.join(process.cwd(), '/etc/')
       : path.join(process.cwd(), '/devel/etc/')
 
+const jscaching = require('js-caching')
+
 let debug = require('debug')('mngr-ui-admin:libs:App'),
     debug_internals = require('debug')('mngr-ui-admin:libs:App:Internals');
 
@@ -21,19 +23,20 @@ module.exports = new Class({
   **/
   ID: 'ea77ccca-4aa1-448d-a766-b23efef9c12b',
 
-  _arguments: function(){
+  cache: undefined,
+
+  // _arguments: function(args, defined_params){
+  _arguments: function(args){
 		let req, resp, next, socket = undefined
 
-    // debug_internals('_arguments', arguments[2], arguments[0]._readableState)
-
-		if(arguments[0]._readableState){//express
-			req = arguments[0]
-			resp = arguments[1]
-			next = arguments[2]
+		if(args[0]._readableState){//express
+			req = args[0]
+			resp = args[1]
+			next = args[2]
 		}
 		else{//socket.io
-			socket = arguments[0]
-			next = arguments[1]
+			socket = args[0]
+			next = args[1]
 		}
 
 		let params = {}
@@ -41,37 +44,82 @@ module.exports = new Class({
 			params = req.params
 		}
 		else{
-      // // ////console.log('socket', arguments)
-      // let isObject = (
-      //   arguments[2] !== null
-      //   && typeof arguments[2] === 'object'
-      //   && isNaN(arguments[2])
-      //   && !Array.isArray(arguments[2])
-      // ) ? true: false
-      //
+      // // ////console.log('socket', args)
+      // let isObject = (args[2] !== null && typeof args[2] === 'object' && isNaN(args[2]) && !Array.isArray(args[2])) ? true: false
+      // //console.log('isObject',isObject)
       //
       // if(defined_params && isObject == false){
       //   Array.each(defined_params, function(name, index){
-      //     params[name] = arguments[index + 2]
+      //     params[name] = args[index + 2]
       //   })
       // }
       // else{
-		     params = arguments[2]
+	     params = args[2]
       // }
 		}
 
 
-    debug_internals('_arguments', next)
 
-		// return {req:req, resp:resp, socket:socket, next:next, params: params}
-
-    /**
-    * https://stackoverflow.com/questions/18875292/passing-variables-to-the-next-middleware-using-next-in-express-js
-    **/
-
-    // next = next.pass({req, resp, socket, params: 'hola'})
-    // next()
+		return {req, resp, socket, next, params}
 	},
+  /**
+  * desde 'hosts', mover a global
+  **/
+  __process_session: function(){
+    debug_internals('__process_session store')
+    let {req, resp, socket, next, params} = this._arguments(arguments)
+
+
+    let session = (socket) ? socket.handshake.session : req.session
+    // let id = (socket) ? socket.id : req.session.id
+    // debug_internals('__process_session store', (socket) ? socket.handshake.sessionStore : req.sessionStore)
+
+    // if(!this.session_store)
+    //   this.session_store = (socket) ? socket.handshake.sessionStore : req.sessionStore
+
+    this.__update_sessions({id: session.id, type: (socket) ? 'socket' : 'http'})
+
+    // if(!session.events)
+    //   session.events = []
+    //
+    // if(!session.hosts_events)
+    //   session.hosts_events= {}
+
+    if(socket){
+      if(!session.sockets) session.sockets = []
+
+      session.sockets.include(socket.id)
+    }
+
+    // return session
+    next()
+  },
+  /**
+  * desde 'hosts', mover a global
+  **/
+  __update_sessions: function(session, remove){
+    remove = remove || false
+    this.cache.get(this.ID+'.sessions', function(err, sessions){
+      if(!sessions || sessions == null) sessions = {}
+
+      session = [session]
+      if(remove === false){
+        Array.each(session, function(_session){
+          if(!sessions[_session.type]) sessions[_session.type] = []
+          sessions[_session.type] = sessions[_session.type].include(_session.id)
+        })
+
+      }
+      else{
+        Array.each(session, function(_session){
+          if(sessions[_session.type])
+            sessions[_session.type] = sessions[_session.type].erase(_session.id)
+        })
+      }
+
+      this.cache.set(this.ID+'.sessions', sessions, this.SESSIONS_TTL)
+    }.bind(this))
+  },
   initialize: function(options){
     if(this.options.api && this.options.api.routes)
     	Object.each(this.options.api.routes, function(routes, verb){
@@ -79,8 +127,8 @@ module.exports = new Class({
   			if(verb != 'all'){
   				Array.each(routes, function(route){
   					//debug('route: ' + verb);
-  					route.callbacks.unshift('_arguments');
-            route.callbacks.push('test');
+  					route.callbacks.unshift('__process_session');
+            // route.callbacks.push('test');
             //
   					// if(verb == 'get')//users can "read" info
   					// 	route.roles = ['user']
@@ -97,7 +145,7 @@ module.exports = new Class({
   			if(verb != 'all'){
   				Array.each(routes, function(route){
   					//debug('route: ' + verb);
-  					route.callbacks.unshift('_arguments');
+  					route.callbacks.unshift('__process_session');
             //
   					// if(verb == 'get')//users can "read" info
   					// 	route.roles = ['user']
@@ -112,17 +160,17 @@ module.exports = new Class({
 
 		this.profile('mngr-ui-admin-app_init');//start profiling
 
-    // this.cache = new jscaching(this.options.cache_store)
-    //
+    this.cache = new jscaching(this.options.cache_store)
+
     // if(this.options.on_demand)
     //   this.ui_rest_client = new ui_rest(ui_rest_client_conf)
     //
-    // // this.pipeline.hosts.inputs[0].conn_pollers[0].addEvent('onConnect', function(){
-    // //   // debug_internals('connected')
-    // //   // this.pipeline.hosts.suspended = false
-    // //   // this.pipeline.hosts.fireEvent('onResume')
-    // //   this.pipeline.hosts.fireEvent('onOnce')
-    // // }.bind(this))
+    // this.pipeline.hosts.inputs[0].conn_pollers[0].addEvent('onConnect', function(){
+    //   // debug_internals('connected')
+    //   // this.pipeline.hosts.suspended = false
+    //   // this.pipeline.hosts.fireEvent('onResume')
+    //   this.pipeline.hosts.fireEvent('onOnce')
+    // }.bind(this))
 
 
 
@@ -133,7 +181,119 @@ module.exports = new Class({
 
 		this.log('mngr-ui-admin-app', 'info', 'mngr-ui-admin-app started');
   },
-  test: function(){
-    debug_internals('test', arguments)
-  }
+  get_pipeline: function(){
+    let { id, cb } = (
+      arguments[0]
+      && typeof arguments[0] === 'function'
+    ) ? {id: undefined, cb: arguments[0]} : {id: arguments[0], cb: arguments[1]}
+
+    if(!this.__pipeline){
+
+      // const HostsPipeline = require('./pipelines/index')({
+      //   conn: require(ETC+'ui.conn.js')(),
+      //   host: this.options.host,
+      //   cache: this.options.cache_store,
+      //   ui: (this.options.on_demand !== true) ? undefined : Object.merge(
+      //     ui_rest_client_conf,
+      //     {
+      //       load: 'apps/hosts/clients'
+      //     }
+      //   )
+      // })
+
+      this.__pipeline = new Pipeline(this.options.pipeline)
+
+      this.__pipeline_cnf = {
+        ids: [],
+        connected: [],
+        suspended: this.__pipeline.inputs.every(function(input){ return input.options.suspended }, this)
+      }
+
+      this.__after_connect_inputs(
+        this.__resume_pipeline.pass([this.pipeline, this.__pipeline_cnf, id, cb], this)
+      )
+
+    }
+    else if(!id){
+      cb(this.pipeline)
+    }
+    else{
+        if(this.pipeline.hosts.inputs.length != this.pipeline.connected.length){
+          this.__after_connect_inputs(
+            this.__resume_pipeline.pass([this.pipeline, this.__pipeline_cnf, id, cb], this)
+            // this.__after_connect_pipeline(
+            //   this.pipeline,
+            //   id,
+            //   cb
+            // )
+          )
+        // this.pipeline.hosts.inputs[0].conn_pollers[0].addEvent('onConnect', () => this.__after_connect_pipeline(
+        //   this.pipeline,
+        //   id,
+        //   cb
+        // ))
+      }
+      else{
+        this.__resume_pipeline(this.pipeline, this.__pipeline_cnf, id, cb)
+      }
+    }
+
+  },
+  __after_connect_inputs: function(cb){
+
+    let _client_connect = function(index){
+      debug_internals('__after_connect_inputs %d', index)
+
+      this.__pipeline_cnf.connected.push(true)
+      if(this.__pipeline.inputs.length === this.__pipeline_cnf.connected.length){
+        cb()
+      }
+
+
+      this.__pipeline.inputs[index].removeEvent('onClientConnect', _client_connect)
+    }.bind(this)
+
+    Array.each(this.__pipeline.inputs, function(input, index){
+      input.addEvent('onClientConnect', _client_connect.pass(index));
+    }.bind(this))
+  },
+  __resume_pipeline: function(pipeline, cfg, id, cb){
+    debug_internals('__resume_pipeline', pipeline, cfg, id, cb)
+
+    if(id){
+      if(!cfg.ids.contains(id))
+        cfg.ids.push(id)
+
+      if(cfg.suspended === true){
+        debug_internals('__resume_pipeline this.pipeline.connected', cfg.connected)
+
+        if(cfg.connected.every(function(item){ return item === true}.bind(this))){
+          cfg.suspended = false
+          pipeline.fireEvent('onResume')
+        }
+        else{
+          let __resume = []
+          Array.each(pipeline.inputs, function(input, index){
+            if(cfg.connected[index] !== true){
+              __resume[index] = function(){
+                __resume_pipeline(pipeline, id)
+                input.conn_pollers[0].removeEvent('onConnect', __resume[index])
+              }.bind(this)
+              input.conn_pollers[0].addEvent('onConnect', () => __resume[index])
+            }
+
+          }.bind(this))
+
+        }
+
+      }
+    }
+
+    if(cb)
+      cb(pipeline)
+
+  },
+  // test: function(){
+  //   debug_internals('test', arguments)
+  // }
 })
