@@ -208,7 +208,7 @@ module.exports = new Class({
     }
   },
   get_from_input: function(payload){
-    let {response, from, next, req, input} = payload
+    let {response, from, next, req, input, params} = payload
     debug_internals('__get', payload)
     from = from || 'periodical'
 
@@ -225,7 +225,7 @@ module.exports = new Class({
               if(resp.id == response){
 
                 if(!err)
-                  this.cache.set(input+'.'+from, resp[input], this.DOMAINS_TTL)
+                  this.cache.set(input+'.'+from, resp[input], this[input.toUpperCase()+'_TTL'])
                 // send_resp[req_id](resp)
 
                 next(response, err, resp)
@@ -239,7 +239,11 @@ module.exports = new Class({
 
             // debug_internals('inputs', pipe.inputs[0].options.id)
             // debug_internals('inputs', pipe.get_input_by_id('domains'))
-            pipe.get_input_by_id(input).fireEvent('onOnce', {from: from, id: response})//fire only the 'domains' input
+            pipe.get_input_by_id(input).fireEvent('onOnce', {
+              from,
+              id: response,
+              params
+            })//fire only the 'domains' input
 
             // pipe.inputs[0].fireEvent('onOnce', {from: from, id: response})//fire only the 'hosts' input
 
