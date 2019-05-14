@@ -209,10 +209,11 @@ module.exports = new Class({
   },
   get_from_input: function(payload){
     let {response, from, next, req, input, params} = payload
-    debug_internals('__get', payload)
     from = from || 'periodical'
+    let joined_params = (params) ? '.'+Object.values(params).join('.') : ''
+    debug_internals('get_from_input', payload, joined_params)
 
-    this.cache.get(input+'.'+from, function(err, result){
+    this.cache.get(input+'.'+from+joined_params, function(err, result){
       debug_internals('__get cache %o %o %s', err, result)
       if(!result){
         this.get_pipeline(req, function(pipe){
@@ -225,7 +226,7 @@ module.exports = new Class({
               if(resp.id == response){
 
                 if(!err)
-                  this.cache.set(input+'.'+from, resp[input], this[input.toUpperCase()+'_TTL'])
+                  this.cache.set(input+'.'+from+joined_params, resp[input], this[input.toUpperCase()+'_TTL'])
                 // send_resp[req_id](resp)
 
                 next(response, err, resp)
