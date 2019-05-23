@@ -208,13 +208,14 @@ module.exports = new Class({
     }
   },
   get_from_input: function(payload){
-    let {response, from, next, req, input, params} = payload
+    let {response, from, next, req, input, params, key} = payload
     from = from || 'periodical'
+    let cache_key = (key) ? input+'.'+from+'.'+key : input+'.'+from
     // let joined_params = (params) ? '.'+Object.values(params).join('.') : ''
     // debug_internals('get_from_input', payload, joined_params)
 
     // this.cache.get(input+'.'+from+joined_params, function(err, result){
-    this.cache.get(input+'.'+from, function(err, result){
+    this.cache.get(cache_key, function(err, result){
       debug_internals('__get cache %o %o %s', err, result)
       if(!result){
         this.get_pipeline(req, function(pipe){
@@ -222,15 +223,17 @@ module.exports = new Class({
 
             let _get_resp = {}
             _get_resp[response] = function(err, resp){
-              debug_internals('_get_resp %s %s', err, resp,  response)
+              debug_internals('_get_resp %s %o %s', err, resp,  response)
 
               if(resp.id == response){
 
-                if(!err){
+                if(!err && Object.every(params, function(value, key){ return value === undefined })){//only cache full responses
                   // this.cache.set(input+'.'+from+joined_params, resp[input], this[input.toUpperCase()+'_TTL'])
-                  this.cache.set(input+'.'+from, resp[input], this[input.toUpperCase()+'_TTL'])
+                  this.cache.set(cache_key, resp[input], this[input.toUpperCase()+'_TTL'])
                 }
                 // send_resp[req_id](resp)
+                resp.from = from
+                resp.input = input
 
                 next(response, err, resp)
 
@@ -255,9 +258,19 @@ module.exports = new Class({
       }
       else{
         // this.response(response, {from: from, input: 'domains', domains: result})
-        let cache = {id: response, from, input}
-        cache[input] = result
-        next(response, undefined, cache)
+        debug_internals('from cache %o', params)
+        let resp = {id: response, from, input}
+        if(Object.every(params, function(value, key){ return value === undefined })){
+          resp[input] = result
+        }
+        else{
+          resp[input] = {}
+          Object.each(params, function(value, key){//key may be anything, value is usually what we search for
+            if(result[value])
+              resp[input][value] = result[value]
+          })
+        }
+        next(response, undefined, resp)
       }
 
     }.bind(this))
