@@ -78,10 +78,11 @@ module.exports = new Class({
               if(app.distinct_indexes.indexOf(index) > -1){
                 app.distinct({
                   _extras: {
-                  from: from,
-                  type: (req.params && req.params.prop) ? 'prop' : app.options.type,
-                  id: req.id,
-                  prop: pluralize(index)},
+                    from: from,
+                    type: (req.params && req.params.prop) ? 'prop' : app.options.type,
+                    id: req.id,
+                    prop: pluralize(index)
+                  },
                   uri: app.options.db+'/periodical',
                   args: {index: index}
                 })
