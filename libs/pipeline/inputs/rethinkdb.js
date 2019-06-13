@@ -62,40 +62,7 @@ module.exports = new Class({
               .ungroup()
               .map(
                 function (doc) {
-                    return {
-            					path: doc('group'),
-            					hosts: doc('reduction').filter(function (doc) {
-            						return doc('metadata').hasFields('host');
-            					}).map(function(doc) {
-            						return app.r.object(doc('metadata')('host'), true) // return { <country>: true}
-            					}).reduce(function(left, right) {
-            							return left.merge(right)
-            					}).default({}).keys(),
-                      types: doc('reduction').filter(function (doc) {
-            						return doc('metadata').hasFields('type');
-            					}).map(function(doc) {
-            						return app.r.object(doc('metadata')('type'), true) // return { <country>: true}
-            					}).reduce(function(left, right) {
-            							return left.merge(right)
-            					}).default({}).keys(),
-                      tags: doc('reduction').filter(function (doc) {
-            						return doc('metadata').hasFields('tag');
-            					}).concatMap(function(doc) {
-            						return doc('metadata')('tag')
-            					}).distinct(),
-            					range: [
-            						doc('reduction').min(
-            							function (set) {
-            									return set('metadata')('timestamp')
-            							}
-            						)('metadata')('timestamp'),
-            						doc('reduction').max(
-            							function (set) {
-            									return set('metadata')('timestamp')
-            							}
-            						)('metadata')('timestamp'),
-            					]
-                    };
+                    return app.build_default_result(doc)
                 }
             )
             .run(app.conn, function(err, resp){
@@ -327,6 +294,43 @@ module.exports = new Class({
 		this.profile('mngr-ui-admin:apps:libs:Pipeline:Inputs:Rethinkdb_init');//end profiling
 
 		this.log('mngr-ui-admin:apps:libs:Pipeline:Inputs:Rethinkdb', 'info', 'mngr-ui-admin:apps:libs:Pipeline:Inputs:Rethinkdb started');
+  },
+  build_default_result: function(doc){
+    let self = this
+    return {
+      path: doc('group'),
+      hosts: doc('reduction').filter(function (doc) {
+        return doc('metadata').hasFields('host');
+      }).map(function(doc) {
+        return self.r.object(doc('metadata')('host'), true) // return { <country>: true}
+      }).reduce(function(left, right) {
+          return left.merge(right)
+      }).default({}).keys(),
+      types: doc('reduction').filter(function (doc) {
+        return doc('metadata').hasFields('type');
+      }).map(function(doc) {
+        return self.r.object(doc('metadata')('type'), true) // return { <country>: true}
+      }).reduce(function(left, right) {
+          return left.merge(right)
+      }).default({}).keys(),
+      tags: doc('reduction').filter(function (doc) {
+        return doc('metadata').hasFields('tag');
+      }).concatMap(function(doc) {
+        return doc('metadata')('tag')
+      }).distinct(),
+      range: [
+        doc('reduction').min(
+          function (set) {
+              return set('metadata')('timestamp')
+          }
+        )('metadata')('timestamp'),
+        doc('reduction').max(
+          function (set) {
+              return set('metadata')('timestamp')
+          }
+        )('metadata')('timestamp'),
+      ]
+    }
   },
   query: function(err, resp, params){
     debug_internals('query', err, resp, params)

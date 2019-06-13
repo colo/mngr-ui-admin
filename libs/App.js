@@ -227,7 +227,8 @@ module.exports = new Class({
 
               if(resp.id == response){
 
-                this.cache.set(cache_key, Object.clone(resp[input]), this[input.toUpperCase()+'_TTL'])
+                let cache_resp = Object.clone(resp)
+                this.cache.set(cache_key, cache_resp[input], this[input.toUpperCase()+'_TTL'])
 
                 // if(!err && Object.every(params, function(value, key){ return value === undefined || key === 'path' })){//only cache full responses
                 // //   // this.cache.set(input+'.'+from+joined_params, resp[input], this[input.toUpperCase()+'_TTL'])
@@ -267,13 +268,13 @@ module.exports = new Class({
       }
       else{
         // this.response(response, {from: from, input: 'domains', domains: result})
-
+        debug_internals('from cache %o', params, result)
         let resp = {id: response, from, input}
         if(Object.every(params, function(value, key){ return value === undefined || key === 'path' })){
           resp[input] = result
         }
         else{
-          debug_internals('from cache %o', params, result)
+
           resp[input] = {}
           Object.each(params, function(value, key){//key may be anything, value is usually what we search for
             if(result[value] && key !== 'path')
