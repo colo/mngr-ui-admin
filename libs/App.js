@@ -227,9 +227,18 @@ module.exports = new Class({
 
               if(resp.id == response){
 
-                if(!err && Object.every(params, function(value, key){ return value === undefined })){//only cache full responses
-                  // this.cache.set(input+'.'+from+joined_params, resp[input], this[input.toUpperCase()+'_TTL'])
-                  this.cache.set(cache_key, resp[input], this[input.toUpperCase()+'_TTL'])
+                this.cache.set(cache_key, Object.clone(resp[input]), this[input.toUpperCase()+'_TTL'])
+
+                // if(!err && Object.every(params, function(value, key){ return value === undefined || key === 'path' })){//only cache full responses
+                // //   // this.cache.set(input+'.'+from+joined_params, resp[input], this[input.toUpperCase()+'_TTL'])
+                //   this.cache.set(cache_key, resp[input], this[input.toUpperCase()+'_TTL'])
+                // }
+                if(params.prop){
+
+                  Object.each(resp[input], function(value, key){
+                    if( key !== params.prop)
+                      delete resp[input][key]
+                  })
                 }
                 // send_resp[req_id](resp)
                 resp.from = from
@@ -258,15 +267,16 @@ module.exports = new Class({
       }
       else{
         // this.response(response, {from: from, input: 'domains', domains: result})
-        debug_internals('from cache %o', params)
+
         let resp = {id: response, from, input}
-        if(Object.every(params, function(value, key){ return value === undefined })){
+        if(Object.every(params, function(value, key){ return value === undefined || key === 'path' })){
           resp[input] = result
         }
         else{
+          debug_internals('from cache %o', params, result)
           resp[input] = {}
           Object.each(params, function(value, key){//key may be anything, value is usually what we search for
-            if(result[value])
+            if(result[value] && key !== 'path')
               resp[input][value] = result[value]
           })
         }
