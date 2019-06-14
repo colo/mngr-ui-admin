@@ -30,6 +30,7 @@ module.exports = new Class({
   ID: 'ea77ccca-4aa1-448d-a766-b23efef9c12b',
   SESSIONS_TTL: 60000,
 
+  
   cache: undefined,
   session_store: undefined,
 
@@ -208,7 +209,7 @@ module.exports = new Class({
     }
   },
   get_from_input: function(payload){
-    let {response, from, next, req, input, params, key} = payload
+    let {response, from, next, req, input, params, key, range} = payload
     from = from || 'periodical'
     let cache_key = (key) ? input+'.'+from+'.'+key : input+'.'+from
     // let joined_params = (params) ? '.'+Object.values(params).join('.') : ''
@@ -227,8 +228,10 @@ module.exports = new Class({
 
               if(resp.id == response){
 
-                let cache_resp = Object.clone(resp)
-                this.cache.set(cache_key, cache_resp[input], this[input.toUpperCase()+'_TTL'])
+                if(!range){//don't cache ranges searchs
+                  let cache_resp = Object.clone(resp)
+                  this.cache.set(cache_key, cache_resp[input], this[input.toUpperCase()+'_TTL'])
+                }
 
                 // if(!err && Object.every(params, function(value, key){ return value === undefined || key === 'path' })){//only cache full responses
                 // //   // this.cache.set(input+'.'+from+joined_params, resp[input], this[input.toUpperCase()+'_TTL'])
@@ -256,11 +259,21 @@ module.exports = new Class({
 
             // debug_internals('inputs', pipe.inputs[0].options.id)
             // debug_internals('inputs', pipe.get_input_by_id('domains'))
-            pipe.get_input_by_id(input).fireEvent('onOnce', {
-              from,
-              id: response,
-              params
-            })//fire only the 'domains' input
+            if(range){
+              pipe.get_input_by_id(input).fireEvent('onRange', {
+                from,
+                id: response,
+                Range:range,
+                params
+              })
+            }
+            else{
+              pipe.get_input_by_id(input).fireEvent('onOnce', {
+                from,
+                id: response,
+                params
+              })
+            }
 
             // pipe.inputs[0].fireEvent('onOnce', {from: from, id: response})//fire only the 'hosts' input
 

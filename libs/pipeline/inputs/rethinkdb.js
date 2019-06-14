@@ -84,129 +84,6 @@ module.exports = new Class({
 
 					}
 				},
-        // {
-				// 	range: function(req, next, app){
-        //     // debug_internals('get_data_range', req);
-				// 		// if(!req.type || (req.params && req.params.prop == 'range')){
-        //     if(!req.params || !req.params.prop || req.params.prop == 'range'){
-        //       debug_internals('range', req);
-        //       let from = req.from || app.FROM
-        //       from = (from === 'minute' || from === 'hour') ? 'historical' : from
-        //
-        //       //get last
-        //       app.nth({
-        //         _extras: {
-        //           from: from,
-        //           id: req.id,
-        //           prop: 'range',
-        //           range_select : 'end',
-        //           // domain: req.params.domain,
-        //           type: (req.params && req.params.prop) ? 'prop' : app.options.type,
-        //         },
-        //         uri: app.options.db+'/'+from,
-        //         args: -1,
-        //         query: app.r.db(app.options.db).table(req.from)
-        //         .orderBy({index: 'timestamp'})
-        //         .pluck({'metadata': ['timestamp']})
-        //         // between(
-        //         //   // [req.params.domain, 'periodical', app.r.now().toEpochTime().mul(1000).sub(5000)],//last 5 secs
-        //         //   [req.params.domain, req.from, 0],//last 5 secs
-        //         //   [req.params.domain, req.from, ''],
-        //         //   {index: 'timestamp'}
-        //         // )
-        //       })
-        //
-        //       //get first
-        //       app.nth({
-        //         _extras: {
-        //           from: from,
-        //           id: req.id,
-        //           prop: 'range',
-        //           range_select : 'start',
-        //           // domain: req.params.domain,
-        //           type: (req.params && req.params.prop) ? 'prop' : app.options.type,
-        //         },
-        //         uri: app.options.db+'/'+req.from,
-        //         args: 0,
-        //         query: app.r.db(app.options.db).table(req.from)
-        //         .orderBy({index: 'timestamp'})
-        //         .pluck({'metadata': ['timestamp']})
-        //         // between(
-        //         //   [req.params.domain, req.from, 0],
-        //         //   [req.params.domain, req.from, ''],
-        //         //   {index: 'sort_by_domain'}
-        //         // )
-        //       })
-        //
-        //
-        //
-        //
-        //     }
-        //
-				// 	}
-				// },
-
-        // {
-				// 	data_range: function(req, next, app){
-        //     // debug_internals('get_data_range', req);
-				// 		// if(!req.type || (req.params && req.params.prop == 'data_range')){
-        //     if(!req.params || !req.params.prop || req.params.prop == 'data_range'){
-        //       debug_internals('data_range', req);
-        //       let from = req.from || app.FROM
-        //       from = (from === 'minute' || from === 'hour') ? 'historical' : from
-        //
-        //       //get last
-        //       app.nth({
-        //         _extras: {
-        //           from: from,
-        //           id: req.id,
-        //           prop: 'data_range',
-        //           range_select : 'end',
-        //           // domain: req.params.domain,
-        //           type: (req.params && req.params.prop) ? 'prop' : app.options.type,
-        //         },
-        //         uri: app.options.db+'/'+from,
-        //         args: -1,
-        //         query: app.r.db(app.options.db).table(req.from)
-        //         .orderBy({index: 'logs_by_data.timestamp'})
-        //         .pluck({'data': ['timestamp']})
-        //         // between(
-        //         //   // [req.params.domain, 'periodical', app.r.now().toEpochTime().mul(1000).sub(5000)],//last 5 secs
-        //         //   [req.params.domain, req.from, 0],//last 5 secs
-        //         //   [req.params.domain, req.from, ''],
-        //         //   {index: 'timestamp'}
-        //         // )
-        //       })
-        //
-        //       //get first
-        //       app.nth({
-        //         _extras: {
-        //           from: from,
-        //           id: req.id,
-        //           prop: 'data_range',
-        //           range_select : 'start',
-        //           // domain: req.params.domain,
-        //           type: (req.params && req.params.prop) ? 'prop' : app.options.type,
-        //         },
-        //         uri: app.options.db+'/'+req.from,
-        //         args: 0,
-        //         query: app.r.db(app.options.db).table(req.from)
-        //         .orderBy({index: 'logs_by_data.timestamp'})
-        //         .pluck({'data': ['timestamp']})
-        //         // between(
-        //         //   [req.params.domain, req.from, 0],
-        //         //   [req.params.domain, req.from, ''],
-        //         //   {index: 'sort_by_domain'}
-        //         // )
-        //       })
-        //
-        //
-        //
-        //
-        //     }
-        //
-				// 	}
-				// },
 
       ],
 
@@ -214,35 +91,75 @@ module.exports = new Class({
       * periodical data always comes from 'periodical' table
       **/
       periodical: [
-      //   {
-			// 		tags: function(req, next, app){
-			// 			debug_internals('tags');
-      //
-      //       /**
-      //       * reducing last minute of tags should be enough, and is way faster than "distinct" from all docs
-      //       **/
-      //       // app.reduce({
-      //       //   _extras: {from: 'periodical', type: 'tags', id: undefined},
-      //       //   uri: app.options.db+'/periodical',
-      //       //   args: function(left, right) {
-      //       //       return left.merge(right)
-      //       //   },
-      //       //
-      //       //   query: app.r.db(app.options.db).table('periodical').between(Date.now() - app.RANGES['periodical'], Date.now(), {index: 'timestamp'}).map(function(doc) {
-      //       //     return app.r.object(doc("metadata")("tag"), true) // return { <country>: true}
-      //       //   }.bind(app))
-      //       // })
-      //
-      //       app.distinct({
-      //         _extras: {from: from, type: app.options.type, id: undefined},
-      //         uri: app.options.db+'/periodical',
-      //         args: {index: 'tags'}
-      //       })
-      //
-			// 		}
-			// 	},
-
       ],
+
+      range: [
+        {
+					distinct_index: function(req, next, app){
+						debug_internals('distinct_index', req);
+
+            let start, end
+            end = (req.opt && req.opt.range) ? req.opt.range.end : Date.now()
+            start  = (req.opt && req.opt.range) ? req.opt.range.start : end - 10000 //10 secs
+
+            // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
+            // if(!Array.isArray(distinct_indexes))
+            //   distinct_indexes = [distinct_indexes]
+            //
+            // debug_internals('property', distinct_indexes);
+
+            let from = req.from || app.FROM
+            from = (from === 'minute' || from === 'hour') ? 'historical' : from
+
+            let query = (req.params.path)
+            ? app.r
+              .db(app.options.db)
+              .table(from)
+              .between(
+              	start,
+              	end,
+              	{index: "timestamp"}
+              )
+              .filter( app.r.row('metadata')('path').eq(req.params.path) )
+              .group( app.r.row('metadata')('path') )
+            : app.r
+              .db(app.options.db)
+              .table(from)
+              .between(
+              	start,
+              	end,
+              	{index: "timestamp"}
+              )
+              .group(app.r.row('metadata')('path'))
+
+            query
+              .ungroup()
+              .map(
+                function (doc) {
+                    return app.build_default_result(doc)
+                }
+            )
+            .run(app.conn, function(err, resp){
+              debug_internals('run', err, resp)
+              app.query(
+                err,
+                resp,
+                {
+                  _extras: {
+                    from: from,
+                    type: (req.params && req.params.path) ? req.params.path : app.options.type,
+                    id: req.id,
+                    Range: 'posix '+start+'-'+end+'/*'
+                    // prop: pluralize(index)
+                  }
+                }
+              )
+            })
+
+
+					}
+				},
+      ]
 
 		},
 
