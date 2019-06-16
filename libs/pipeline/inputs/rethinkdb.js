@@ -108,7 +108,7 @@ module.exports = new Class({
             start  = (req.opt && req.opt.range) ? req.opt.range.start : end - 10000 //10 secs
 
             let range = 'posix '+start+'-'+end+'/*'
-            
+
             // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
             // if(!Array.isArray(distinct_indexes))
             //   distinct_indexes = [distinct_indexes]
@@ -298,6 +298,12 @@ module.exports = new Class({
 				[err, extras]
 			);
     }
+
+    if(!err && Array.isArray(resp) && resp.length === 0)
+      err = {
+        status: 404,
+        message: 'Not Found'
+      }
 
     extras[type] = (type === 'all') ? resp : (Array.isArray(resp)) ? resp[0]: resp
 
