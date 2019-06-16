@@ -47,18 +47,23 @@ module.exports = new Class({
             let from = req.from || app.FROM
             from = (from === 'minute' || from === 'hour') ? 'historical' : from
 
-            let query = (req.params.path)
-            ? app.r
+            let query = app.r
               .db(app.options.db)
               .table(from)
+
+            query = (req.params.prop && req.params.value)
+            ? query
+              .getAll(req.params.value , {index: pluralize(req.params.prop, 1)})
+            : query
+
+            query = (req.params.path)
+            ? query
               .filter( app.r.row('metadata')('path').eq(req.params.path) )
-              .group( app.r.row('metadata')('path') )
-            : app.r
-              .db(app.options.db)
-              .table(from)
-              .group({index:'path'})
+            : query
+
 
             query
+              .group( app.r.row('metadata')('path') )
               .ungroup()
               .map(
                 function (doc) {
@@ -102,6 +107,8 @@ module.exports = new Class({
             end = (req.opt && req.opt.range) ? req.opt.range.end : Date.now()
             start  = (req.opt && req.opt.range) ? req.opt.range.start : end - 10000 //10 secs
 
+            let range = 'posix '+start+'-'+end+'/*'
+            
             // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
             // if(!Array.isArray(distinct_indexes))
             //   distinct_indexes = [distinct_indexes]
@@ -111,28 +118,42 @@ module.exports = new Class({
             let from = req.from || app.FROM
             from = (from === 'minute' || from === 'hour') ? 'historical' : from
 
-            let query = (req.params.path)
-            ? app.r
+            let index = "timestamp"
+
+            let query = app.r
               .db(app.options.db)
               .table(from)
+
+            index = (req.params.prop && req.params.value)
+            ? pluralize(req.params.prop, 1)+'.timestamp'
+            : index
+
+            start = (req.params.prop && req.params.value)
+            ? [req.params.value, start]
+            : start
+
+            end = (req.params.prop && req.params.value)
+            ? [req.params.value, end]
+            : end
+
+            query = (req.params.path)
+            ? query
               .between(
               	start,
               	end,
-              	{index: "timestamp"}
+              	{index: index}
               )
               .filter( app.r.row('metadata')('path').eq(req.params.path) )
-              .group( app.r.row('metadata')('path') )
-            : app.r
-              .db(app.options.db)
-              .table(from)
+            : query
               .between(
               	start,
               	end,
-              	{index: "timestamp"}
+              	{index: index}
               )
-              .group(app.r.row('metadata')('path'))
+
 
             query
+              .group(app.r.row('metadata')('path'))
               .ungroup()
               .map(
                 function (doc) {
@@ -149,7 +170,7 @@ module.exports = new Class({
                     from: from,
                     type: (req.params && req.params.path) ? req.params.path : app.options.type,
                     id: req.id,
-                    Range: 'posix '+start+'-'+end+'/*'
+                    Range: range
                     // prop: pluralize(index)
                   }
                 }
@@ -261,12 +282,12 @@ module.exports = new Class({
     if(err){
       debug_internals('query err', err)
 
-			if(params.uri != ''){
-				this.fireEvent('on'+params.uri.charAt(0).toUpperCase() + params.uri.slice(1)+'Error', err);//capitalize first letter
-			}
-			else{
+			// if(params.uri != ''){
+			// 	this.fireEvent('on'+params.uri.charAt(0).toUpperCase() + params.uri.slice(1)+'Error', err);//capitalize first letter
+			// }
+			// else{
 				this.fireEvent('onGetError', err);
-			}
+			// }
 
 			// this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
 

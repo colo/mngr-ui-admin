@@ -30,7 +30,7 @@ module.exports = new Class({
   ID: 'ea77ccca-4aa1-448d-a766-b23efef9c12b',
   SESSIONS_TTL: 60000,
 
-  
+
   cache: undefined,
   session_store: undefined,
 
@@ -212,24 +212,28 @@ module.exports = new Class({
     let {response, from, next, req, input, params, key, range} = payload
     from = from || 'periodical'
     let cache_key = (key) ? input+'.'+from+'.'+key : input+'.'+from
+    cache_key = (params.prop && params.value) ? cache_key+'.'+params.prop+'.'+params.value : cache_key
+
     // let joined_params = (params) ? '.'+Object.values(params).join('.') : ''
     // debug_internals('get_from_input', payload, joined_params)
 
     // this.cache.get(input+'.'+from+joined_params, function(err, result){
     this.cache.get(cache_key, function(err, result){
       debug_internals('__get cache %o %o %s', err, result)
-      if(!result){
+
+      if(!result || range !== undefined){//even on result ranges search are not used from cache
         this.get_pipeline(req, function(pipe){
             debug_internals('__get get_pipeline', pipe)
 
             let _get_resp = {}
             _get_resp[response] = function(err, resp){
-              debug_internals('_get_resp %s %o %s', err, resp,  response)
+              debug_internals('_get_resp %s %o %s', err, resp,  response, params)
 
               if(resp.id == response){
 
                 if(!range){//don't cache ranges searchs
                   let cache_resp = Object.clone(resp)
+
                   this.cache.set(cache_key, cache_resp[input], this[input.toUpperCase()+'_TTL'])
                 }
 
@@ -237,12 +241,27 @@ module.exports = new Class({
                 // //   // this.cache.set(input+'.'+from+joined_params, resp[input], this[input.toUpperCase()+'_TTL'])
                 //   this.cache.set(cache_key, resp[input], this[input.toUpperCase()+'_TTL'])
                 // }
-                if(params.prop){
+                if(params.prop && !params.value){
+                  let _arr_resp = resp[input]
+                  if(!Array.isArray(_arr_resp))
+                    _arr_resp = [_arr_resp]
 
-                  Object.each(resp[input], function(value, key){
-                    if( key !== params.prop)
-                      delete resp[input][key]
+                  Array.each(_arr_resp, function(data, index){
+                    if(data)
+                      Object.each(data, function(value, key){
+                        debug_internals('_get_resp delete key %s %s', key, params.prop)
+                        if( key !== params.prop)
+                          delete data[key]
+                      })
                   })
+
+                  if(!Array.isArray(resp[input])){
+                    resp[input] = _arr_resp[0]
+                  }
+                  else{
+                    resp[input] = _arr_resp
+                  }
+
                 }
                 // send_resp[req_id](resp)
                 resp.from = from
@@ -283,16 +302,42 @@ module.exports = new Class({
         // this.response(response, {from: from, input: 'domains', domains: result})
         debug_internals('from cache %o', params, result)
         let resp = {id: response, from, input}
-        if(Object.every(params, function(value, key){ return value === undefined || key === 'path' })){
+        if(Object.every(params, function(value, key){ return value === undefined || key === 'path' }) || params.value){
           resp[input] = result
         }
         else{
 
-          resp[input] = {}
-          Object.each(params, function(value, key){//key may be anything, value is usually what we search for
-            if(result[value] && key !== 'path')
-              resp[input][value] = result[value]
+          // resp[input] = {}
+          let _arr_resp = result
+          if(!Array.isArray(_arr_resp))
+            _arr_resp = [_arr_resp]
+
+          Array.each(_arr_resp, function(data, index){
+            Object.each(data, function(value, key){
+              debug_internals('_get_resp delete key %s %s', key, params.prop)
+              if( key !== params.prop)
+                delete data[key]
+            })
           })
+
+          if(!Array.isArray(resp[input])){
+            resp[input] = _arr_resp[0]
+          }
+          else{
+            resp[input] = _arr_resp
+          }
+
+          // Object.each(params, function(value, key){//key may be anything, value is usually what we search for
+          //   if(result[value] && key !== 'path')
+          //     resp[input][value] = result[value]
+          // })
+          // Array.each(_arr_resp, function(data, index){
+          //   Object.each(params, function(value, key){//key may be anything, value is usually what we search for
+          //     if(data[value] && key !== 'path')
+          //       resp[input][value] = result[value]
+          //   })
+          // })
+
         }
         next(response, undefined, resp)
       }
