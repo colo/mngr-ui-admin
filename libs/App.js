@@ -22,6 +22,8 @@ const Pipeline = require('js-pipeline')
 let debug = require('debug')('mngr-ui-admin:libs:App'),
     debug_internals = require('debug')('mngr-ui-admin:libs:App:Internals');
 
+const uuidv5 = require('uuid/v5')
+
 module.exports = new Class({
   Extends: App,
   // Implements: Chain,
@@ -209,29 +211,35 @@ module.exports = new Class({
     }
   },
   get_from_input: function(payload){
-    let {response, from, next, req, input, params, key, range} = payload
+    let {response, from, next, req, input, params, key, range, query} = payload
     from = from || 'periodical'
     let cache_key = (key) ? input+'.'+from+'.'+key : input+'.'+from
     cache_key = (params.prop && params.value) ? cache_key+'.'+params.prop+'.'+params.value : cache_key
+    cache_key = (query.q) ? cache_key+'.'+query.q : cache_key
+    cache_key = (query.q && query.fields) ? cache_key+'.'+uuidv5(query.fields, this.ID) : cache_key
+
+
 
     // let joined_params = (params) ? '.'+Object.values(params).join('.') : ''
     // debug_internals('get_from_input', payload, joined_params)
 
     // this.cache.get(input+'.'+from+joined_params, function(err, result){
-    this.cache.get(cache_key, function(err, result){
-      debug_internals('__get cache %o %o %s', err, result)
+    debug_internals('__get cache key %s %s', cache_key, input.toUpperCase(), this[input.toUpperCase()+'_TTL'])
 
-      if(!result || range !== undefined){//even on result ranges search are not used from cache
+    this.cache.get(cache_key, function(err, result){
+      debug_internals('__get cache ERR %o %d %s',  (err) ? true : false, (err) ? err.status : 200, (err) ? new Date(err.expired) : '')
+
+      if(!result || range !== undefined || query.transformation){//even on result ranges search are not used from cache
         this.get_pipeline(req, function(pipe){
             debug_internals('__get get_pipeline', pipe)
 
             let _get_resp = {}
             _get_resp[response] = function(err, resp){
-              debug_internals('_get_resp %s %o %s', err, resp,  response, params)
+              debug_internals('_get_resp %s %o %s', err, response, params) //resp
 
               if(resp.id == response){
 
-                if(!range){//don't cache ranges searchs
+                if(!range || !query.transformation){//don't cache ranges searchs
                   let cache_resp = Object.clone(resp)
 
                   this.cache.set(cache_key, cache_resp[input], this[input.toUpperCase()+'_TTL'])
@@ -283,14 +291,16 @@ module.exports = new Class({
                 from,
                 id: response,
                 Range:range,
-                params
+                params,
+                query
               })
             }
             else{
               pipe.get_input_by_id(input).fireEvent('onOnce', {
                 from,
                 id: response,
-                params
+                params,
+                query
               })
             }
 
@@ -462,7 +472,7 @@ module.exports = new Class({
       this.__pipeline.addEvent(this.__pipeline.ON_SAVE_DOC, function(doc){
         let {id, type} = doc
 
-        debug_internals('onSaveDoc %o', doc)
+        // debug_internals('onSaveDoc %o', doc)
         if(id)
           this.fireEvent(id, [undefined, doc])
 

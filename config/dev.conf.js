@@ -56,7 +56,7 @@ module.exports = new Class({
 			//]
 			//default: [
 				//{ transport: winston.transports.Console, options: { colorize: 'true', level: 'warning' } },
-				//{ transport: winston.transports.Logstash, options: {transform: trasnform, level: 'info', port: 28777, node_name: 'mngr-api', host: '192.168.0.40' } }
+				//{ transport: winston.transports.Logstash, options: {transform: transform, level: 'info', port: 28777, node_name: 'mngr-api', host: '192.168.0.40' } }
 			//]
 		},
 

@@ -35,8 +35,8 @@ module.exports = new Class({
 		requests : {
       once: [
         {
-					distinct_index: function(req, next, app){
-						debug_internals('property', req);
+					default: function(req, next, app){
+						debug_internals('default', req);
 
             // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
             // if(!Array.isArray(distinct_indexes))
@@ -56,6 +56,10 @@ module.exports = new Class({
               .getAll(req.params.value , {index: pluralize(req.params.prop, 1)})
             : query
 
+
+            if(req.query && req.query.transformation)
+              query = app.query_with_transformation(query, req.query.transformation)
+
             query = (req.params.path)
             ? query
               .filter( app.r.row('metadata')('path').eq(req.params.path) )
@@ -67,12 +71,12 @@ module.exports = new Class({
               .ungroup()
               .map(
                 function (doc) {
-                    return app.build_default_result(doc)
+                    return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
                 }
             )
             .run(app.conn, function(err, resp){
-              debug_internals('run', err, resp)
-              app.query(
+              debug_internals('run', err)//resp
+              app.process_default(
                 err,
                 resp,
                 {
@@ -100,8 +104,8 @@ module.exports = new Class({
 
       range: [
         {
-					distinct_index: function(req, next, app){
-						debug_internals('distinct_index', req);
+					default: function(req, next, app){
+						debug_internals('default range', req);
 
             let start, end
             end = (req.opt && req.opt.range) ? req.opt.range.end : Date.now()
@@ -152,17 +156,21 @@ module.exports = new Class({
               )
 
 
+
+            if(req.query && req.query.transformation)
+              query = app.query_with_transformation(query, req.query.transformation)
+
             query
               .group(app.r.row('metadata')('path'))
               .ungroup()
               .map(
                 function (doc) {
-                    return app.build_default_result(doc)
+                    return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
                 }
             )
             .run(app.conn, function(err, resp){
-              debug_internals('run', err, resp)
-              app.query(
+              debug_internals('run', err) //resp
+              app.process_default(
                 err,
                 resp,
                 {
@@ -190,14 +198,14 @@ module.exports = new Class({
       //   path: ':database/:table',
       //   callbacks: ['distinct']
       // }],
-      distinct: [{
-        path: ':database/:table',
-        callbacks: ['distinct']
-      }],
-      nth: [{
-        path: ':database/:table',
-        callbacks: ['range']
-      }],
+      // distinct: [{
+      //   path: ':database/:table',
+      //   callbacks: ['distinct']
+      // }],
+      // nth: [{
+      //   path: ':database/:table',
+      //   callbacks: ['range']
+      // }],
       // changes: [{
       //   // path: ':database/:table',
       //   path: '',
@@ -232,6 +240,39 @@ module.exports = new Class({
 		this.profile('mngr-ui-admin:apps:libs:Pipeline:Inputs:Rethinkdb_init');//end profiling
 
 		this.log('mngr-ui-admin:apps:libs:Pipeline:Inputs:Rethinkdb', 'info', 'mngr-ui-admin:apps:libs:Pipeline:Inputs:Rethinkdb started');
+  },
+  query_with_transformation: function(query, transformation){
+    let _query_transform, _query_transform_value
+
+    if(transformation){
+      if(typeof transformation === 'string'){
+        _query_transform = transformation.split(':')[0]
+        _query_transform_value = transformation.split(':').slice(1)
+      }
+      else{
+        _query_transform = Object.keys(transformation)[0]
+        _query_transform_value = transformation[_query_transform]
+      }
+      switch(_query_transform){
+        case 'sample':
+          query = query.sample(_query_transform_value[0] * 1)
+          break;
+
+        case 'limit':
+          query = query.limit(_query_transform_value[0] * 1)
+          break;
+
+        case 'skip':
+          query = query.skip(_query_transform_value[0] * 1)
+          break;
+
+        case 'slice':
+          query = query.slice(_query_transform_value[0] * 1, _query_transform_value[1] * 1, _query_transform_value[2])
+          break;
+      }
+    }
+
+    return query
   },
   build_default_result: function(doc){
     let self = this
@@ -270,8 +311,51 @@ module.exports = new Class({
       ]
     }
   },
-  query: function(err, resp, params){
-    debug_internals('query', err, resp, params)
+  build_default_query_result: function(doc, query){
+    debug_internals('build_default_query_result %o', query)
+
+    let self = this
+    let r_query = doc('reduction')
+
+    let query_with_fields = {}
+
+
+    let _return_obj = {
+      path: doc('group')
+    }
+
+    if(typeof query.q === 'string'){
+      if(query.fields){
+
+        try{
+          query.fields = JSON.parse(query.fields)
+        }
+        catch(e){
+
+        }
+        query_with_fields[query.q] = query.fields
+      }
+
+      debug_internals('build_default_query_result %o', query, query_with_fields)
+
+      r_query = (query.fields)
+      ? r_query.withFields(query_with_fields)(query.q)
+      : r_query.withFields(query.q)(query.q)
+
+      _return_obj[query.q] = r_query
+    }
+    else{
+      _return_obj['docs'] = r_query.pluck(this.r.args(query.q))
+    }
+
+
+
+
+
+    return _return_obj
+  },
+  process_default: function(err, resp, params){
+    debug_internals('process_default', err, params)
 
     let extras = params._extras
     let type = extras.type
@@ -280,7 +364,7 @@ module.exports = new Class({
     delete extras.type
 
     if(err){
-      debug_internals('query err', err)
+      debug_internals('process_default err', err)
 
 			// if(params.uri != ''){
 			// 	this.fireEvent('on'+params.uri.charAt(0).toUpperCase() + params.uri.slice(1)+'Error', err);//capitalize first letter
@@ -323,197 +407,197 @@ module.exports = new Class({
 
 
   },
-  distinct: function(err, resp, params){
-    // debug_internals('distinct', err, resp)
-
-
-    let extras = params.options._extras
-    let domain = extras.domain
-    let prop = extras.prop
-    let type = extras.type
-    let id = extras.id
-
-    delete extras.type
-
-    // extras.type = (id === undefined) ? 'prop' : app.options.type
-    // extras.type = (extras.type === app.options.type) ? extras.type : extras.prop
-
-    // extras[extras.type] = this.type_props
-
-    // if(!this.domains[domain] || type == 'prop') this.domains[domain] = {}
-
-    // this.domains[domain][prop] = (resp) ? Object.keys(resp) : null
-
-
-
-    if(err){
-      debug_internals('distinct err', err)
-
-			if(params.uri != ''){
-				this.fireEvent('on'+params.uri.charAt(0).toUpperCase() + params.uri.slice(1)+'Error', err);//capitalize first letter
-			}
-			else{
-				this.fireEvent('onGetError', err);
-			}
-
-			this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
-
-			this.fireEvent(
-				this[
-					'ON_'+this.options.requests.current.type.toUpperCase()+'_DOC_ERROR'
-				],
-				[err, extras]
-			);
-    }
-    else{
-      // let type = params.options._extras.type
-
-
-      // let arr = (resp) ? Object.keys(resp) : null
-      resp.toArray(function(err, arr){
-        // resp.toArray(function(err, arr){
-
-        debug_internals('distinct count', arr, type)
-        this.type_props[extras.prop] = arr
-        // extras[type] = (type === 'logs') ? this.type_props : this.type_props[extras.prop]
-        if(type === this.options.type){
-          extras[this.options.type] = this.type_props
-        }
-        else{
-          extras[this.options.type] = {}
-          extras[this.options.type][extras.prop]
-          extras[this.options.type][extras.prop] = this.type_props[extras.prop]
-        }
-
-        // if(extras.type === 'logs')
-        delete extras.prop
-        delete extras.type
-
-        let properties = [].combine(this.distinct_indexes).combine(this.custom)
-
-        if(type == 'prop' || (Object.keys(this.type_props).length == properties.length)){
-          let found = false
-          Object.each(this.type_props, function(data, property){//if at least a property has data, domain exist
-            if(data !== null && ((Array.isArray(data) || data.length > 0) || Object.getLength(data) > 0))
-              found = true
-          })
-
-          if(err){
-            // let err = {}
-            // err['status'] = 404
-            // err['message'] = 'not found'
-            this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
-          }
-          else if(!found){
-            let err = {}
-            err['status'] = 404
-            err['message'] = 'not found'
-            this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
-          }
-          else{
-
-            this.fireEvent(this.ON_DOC, [extras, Object.merge({input_type: this, app: null})]);
-          }
-
-          this.type_props = {}
-        }
-
-
-      }.bind(this))
-
-
-
-    }
-  },
-  range: function(err, resp, params){
-    debug_internals('range', err, resp, params.options)
-
-    let extras = params.options._extras
-    let range_select = extras.range_select //start | end
-    // let domain = extras.domain
-    let prop = extras.prop
-    let type = extras.type
-    let id = extras.id
-
-    // extras.type = (id === undefined) ? 'prop' : 'logs'
-
-    if(!this.type_props[extras.prop]) this.type_props[extras.prop] = {start: undefined, end: undefined}
-
-    delete extras.range_select
-    delete extras.type
-
-    if(prop === 'data_range'){
-      this.type_props[extras.prop][range_select] = (resp && resp.data && resp.data.timestamp) ? resp.data.timestamp : null
-    }
-    else{
-      this.type_props[extras.prop][range_select] = (resp && resp.metadata && resp.metadata.timestamp) ? resp.metadata.timestamp : null
-    }
-
-
-    if(err){
-      // debug_internals('reduce err', err)
-
-			if(params.uri != ''){
-				this.fireEvent('on'+params.uri.charAt(0).toUpperCase() + params.uri.slice(1)+'Error', err);//capitalize first letter
-			}
-			else{
-				this.fireEvent('onGetError', err);
-			}
-
-			if(
-        this.type_props[extras.prop]['start'] !== undefined
-        && this.type_props[extras.prop]['end'] !== undefined
-      )
-        this.fireEvent(this.ON_DOC_ERROR, [err, extras])
-
-			this.fireEvent(
-				this[
-					'ON_'+this.options.requests.current.type.toUpperCase()+'_DOC_ERROR'
-				],
-				err
-			);
-    }
-    else{
-
-      if(this.type_props[prop]['start'] !== undefined && this.type_props[prop]['end'] !== undefined ){
-        if(type === this.options.type)
-          delete extras.prop
-
-        let properties = [].combine(this.distinct_indexes).combine(this.custom)
-
-        if(type === this.options.type){
-          extras[this.options.type] = this.type_props
-        }
-        else{
-          extras[this.options.type] = {}
-          extras[this.options.type][extras.prop]
-          extras[this.options.type][extras.prop] = this.type_props[extras.prop]
-        }
-
-        if(type == 'prop' || (Object.keys(this.type_props).length == properties.length)){
-          let found = false
-          Object.each(this.type_props, function(data, property){//if at least a property has data, domain exist
-            if(data !== null && ((Array.isArray(data) || data.length > 0) || Object.getLength(data) > 0))
-              found = true
-          })
-
-          if(!found){
-            let err = {}
-            err['status'] = 404
-            err['message'] = 'not found'
-            this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
-          }
-          else{
-
-            this.fireEvent(this.ON_DOC, [extras, Object.merge({input_type: this, app: null})]);
-          }
-
-          this.type_props = {}
-        }
-      }
-
-    }
-  },
+  // distinct: function(err, resp, params){
+  //   // debug_internals('distinct', err, resp)
+  //
+  //
+  //   let extras = params.options._extras
+  //   let domain = extras.domain
+  //   let prop = extras.prop
+  //   let type = extras.type
+  //   let id = extras.id
+  //
+  //   delete extras.type
+  //
+  //   // extras.type = (id === undefined) ? 'prop' : app.options.type
+  //   // extras.type = (extras.type === app.options.type) ? extras.type : extras.prop
+  //
+  //   // extras[extras.type] = this.type_props
+  //
+  //   // if(!this.domains[domain] || type == 'prop') this.domains[domain] = {}
+  //
+  //   // this.domains[domain][prop] = (resp) ? Object.keys(resp) : null
+  //
+  //
+  //
+  //   if(err){
+  //     debug_internals('distinct err', err)
+  //
+	// 		if(params.uri != ''){
+	// 			this.fireEvent('on'+params.uri.charAt(0).toUpperCase() + params.uri.slice(1)+'Error', err);//capitalize first letter
+	// 		}
+	// 		else{
+	// 			this.fireEvent('onGetError', err);
+	// 		}
+  //
+	// 		this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
+  //
+	// 		this.fireEvent(
+	// 			this[
+	// 				'ON_'+this.options.requests.current.type.toUpperCase()+'_DOC_ERROR'
+	// 			],
+	// 			[err, extras]
+	// 		);
+  //   }
+  //   else{
+  //     // let type = params.options._extras.type
+  //
+  //
+  //     // let arr = (resp) ? Object.keys(resp) : null
+  //     resp.toArray(function(err, arr){
+  //       // resp.toArray(function(err, arr){
+  //
+  //       debug_internals('distinct count', arr, type)
+  //       this.type_props[extras.prop] = arr
+  //       // extras[type] = (type === 'logs') ? this.type_props : this.type_props[extras.prop]
+  //       if(type === this.options.type){
+  //         extras[this.options.type] = this.type_props
+  //       }
+  //       else{
+  //         extras[this.options.type] = {}
+  //         extras[this.options.type][extras.prop]
+  //         extras[this.options.type][extras.prop] = this.type_props[extras.prop]
+  //       }
+  //
+  //       // if(extras.type === 'logs')
+  //       delete extras.prop
+  //       delete extras.type
+  //
+  //       let properties = [].combine(this.distinct_indexes).combine(this.custom)
+  //
+  //       if(type == 'prop' || (Object.keys(this.type_props).length == properties.length)){
+  //         let found = false
+  //         Object.each(this.type_props, function(data, property){//if at least a property has data, domain exist
+  //           if(data !== null && ((Array.isArray(data) || data.length > 0) || Object.getLength(data) > 0))
+  //             found = true
+  //         })
+  //
+  //         if(err){
+  //           // let err = {}
+  //           // err['status'] = 404
+  //           // err['message'] = 'not found'
+  //           this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
+  //         }
+  //         else if(!found){
+  //           let err = {}
+  //           err['status'] = 404
+  //           err['message'] = 'not found'
+  //           this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
+  //         }
+  //         else{
+  //
+  //           this.fireEvent(this.ON_DOC, [extras, Object.merge({input_type: this, app: null})]);
+  //         }
+  //
+  //         this.type_props = {}
+  //       }
+  //
+  //
+  //     }.bind(this))
+  //
+  //
+  //
+  //   }
+  // },
+  // range: function(err, resp, params){
+  //   debug_internals('range', err, resp, params.options)
+  //
+  //   let extras = params.options._extras
+  //   let range_select = extras.range_select //start | end
+  //   // let domain = extras.domain
+  //   let prop = extras.prop
+  //   let type = extras.type
+  //   let id = extras.id
+  //
+  //   // extras.type = (id === undefined) ? 'prop' : 'logs'
+  //
+  //   if(!this.type_props[extras.prop]) this.type_props[extras.prop] = {start: undefined, end: undefined}
+  //
+  //   delete extras.range_select
+  //   delete extras.type
+  //
+  //   if(prop === 'data_range'){
+  //     this.type_props[extras.prop][range_select] = (resp && resp.data && resp.data.timestamp) ? resp.data.timestamp : null
+  //   }
+  //   else{
+  //     this.type_props[extras.prop][range_select] = (resp && resp.metadata && resp.metadata.timestamp) ? resp.metadata.timestamp : null
+  //   }
+  //
+  //
+  //   if(err){
+  //     // debug_internals('reduce err', err)
+  //
+	// 		if(params.uri != ''){
+	// 			this.fireEvent('on'+params.uri.charAt(0).toUpperCase() + params.uri.slice(1)+'Error', err);//capitalize first letter
+	// 		}
+	// 		else{
+	// 			this.fireEvent('onGetError', err);
+	// 		}
+  //
+	// 		if(
+  //       this.type_props[extras.prop]['start'] !== undefined
+  //       && this.type_props[extras.prop]['end'] !== undefined
+  //     )
+  //       this.fireEvent(this.ON_DOC_ERROR, [err, extras])
+  //
+	// 		this.fireEvent(
+	// 			this[
+	// 				'ON_'+this.options.requests.current.type.toUpperCase()+'_DOC_ERROR'
+	// 			],
+	// 			err
+	// 		);
+  //   }
+  //   else{
+  //
+  //     if(this.type_props[prop]['start'] !== undefined && this.type_props[prop]['end'] !== undefined ){
+  //       if(type === this.options.type)
+  //         delete extras.prop
+  //
+  //       let properties = [].combine(this.distinct_indexes).combine(this.custom)
+  //
+  //       if(type === this.options.type){
+  //         extras[this.options.type] = this.type_props
+  //       }
+  //       else{
+  //         extras[this.options.type] = {}
+  //         extras[this.options.type][extras.prop]
+  //         extras[this.options.type][extras.prop] = this.type_props[extras.prop]
+  //       }
+  //
+  //       if(type == 'prop' || (Object.keys(this.type_props).length == properties.length)){
+  //         let found = false
+  //         Object.each(this.type_props, function(data, property){//if at least a property has data, domain exist
+  //           if(data !== null && ((Array.isArray(data) || data.length > 0) || Object.getLength(data) > 0))
+  //             found = true
+  //         })
+  //
+  //         if(!found){
+  //           let err = {}
+  //           err['status'] = 404
+  //           err['message'] = 'not found'
+  //           this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
+  //         }
+  //         else{
+  //
+  //           this.fireEvent(this.ON_DOC, [extras, Object.merge({input_type: this, app: null})]);
+  //         }
+  //
+  //         this.type_props = {}
+  //       }
+  //     }
+  //
+  //   }
+  // },
   // changes: function(err, resp, params){
   //   debug_internals('changes %o %o %o %s', err, resp, params, new Date())
   //
