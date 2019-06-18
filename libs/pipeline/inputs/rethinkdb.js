@@ -345,7 +345,8 @@ module.exports = new Class({
       _return_obj[query.q] = r_query
     }
     else{
-      _return_obj['docs'] = r_query.pluck(this.r.args(query.q))
+      // _return_obj['docs'] = r_query.pluck(this.r.args(query.q))
+      _return_obj = r_query.pluck(this.r.args(query.q))
     }
 
 
