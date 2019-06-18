@@ -239,7 +239,7 @@ module.exports = new Class({
 
               if(resp.id == response){
 
-                if(!range || !query.transformation){//don't cache ranges searchs
+                if(!range && !query.transformation){//don't cache ranges searchs
                   let cache_resp = Object.clone(resp)
 
                   this.cache.set(cache_key, cache_resp[input], this[input.toUpperCase()+'_TTL'])
