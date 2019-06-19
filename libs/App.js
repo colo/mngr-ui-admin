@@ -213,6 +213,63 @@ module.exports = new Class({
       while (_chain.callChain(err, resp) !== false) {}
     }
   },
+  generic_response: function(payload){
+    debug_internals('generic_response', payload)
+    let {err, result, resp, input, format} = payload
+
+    let status = (err && err.status) ? err.status : ((err) ? 500 : 200)
+    if(err)
+      result = Object.merge(err, result)
+
+    if(format && !err){
+      let stat = {}
+      stat[input] = result[input]
+      this.__transform_data('stat',stat , this.ID, function(value){
+        debug_internals(input+': __transform_data stat %O', value.stat) //result
+
+        result[input] = value.stat[input]
+
+        if( format == 'tabular' ){
+          this.__transform_data('tabular', value.stat[input], this.id, function(value){
+            debug_internals(input+': __transform_data tabular %O', value) //result
+
+            result[input] = value
+
+            if(resp){
+              resp.status(status).json(result)
+            }
+            else{
+              socket.emit(input, result)
+            }
+
+          }.bind(this))
+
+        }
+        else{
+          if(resp){
+            resp.status(status).json(result)
+          }
+          else{
+            socket.emit(input, result)
+          }
+        }
+
+      }.bind(this))
+    }
+    else{
+      if(resp){
+        resp.status(status).json(result)
+      }
+      else{
+        socket.emit(input, result)
+      }
+    }
+
+
+
+
+
+  },
   get_from_input: function(payload){
     let {response, from, next, req, input, params, key, range, query} = payload
     from = from || 'periodical'
@@ -277,6 +334,8 @@ module.exports = new Class({
                 // send_resp[req_id](resp)
                 resp.from = from
                 resp.input = input
+
+                debug_internals('_get_resp %O', next) //resp
 
                 next(response, err, resp)
 
