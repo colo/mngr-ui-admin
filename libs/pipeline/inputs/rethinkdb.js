@@ -84,6 +84,7 @@ module.exports = new Class({
                     from: from,
                     type: (req.params && req.params.path) ? req.params.path : app.options.type,
                     id: req.id,
+                    transformation: (req.query.transformation) ? true : false
                     // prop: pluralize(index)
                   }
                 }
@@ -178,7 +179,8 @@ module.exports = new Class({
                     from: from,
                     type: (req.params && req.params.path) ? req.params.path : app.options.type,
                     id: req.id,
-                    Range: range
+                    Range: range,
+                    transformation: (req.query.transformation) ? true : false
                     // prop: pluralize(index)
                   }
                 }
@@ -361,6 +363,7 @@ module.exports = new Class({
     let extras = params._extras
     let type = extras.type
     let id = extras.id
+    let transformation = extras.transformation
 
     delete extras.type
 
@@ -391,7 +394,8 @@ module.exports = new Class({
       }
 
     extras[type] = (type === 'all') ? resp : (Array.isArray(resp)) ? resp[0]: resp
-
+    if(transformation && type === 'all')
+      extras[type] = extras[type][0]
 
     delete extras.prop
     delete extras.type

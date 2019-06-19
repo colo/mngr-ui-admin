@@ -218,8 +218,8 @@ module.exports = new Class({
     from = from || 'periodical'
     let cache_key = (key) ? input+'.'+from+'.'+key : input+'.'+from
     cache_key = (params.prop && params.value) ? cache_key+'.'+params.prop+'.'+params.value : cache_key
-    cache_key = (query.q) ? cache_key+'.'+query.q : cache_key
-    cache_key = (query.q && query.fields) ? cache_key+'.'+uuidv5(query.fields, this.ID) : cache_key
+    cache_key = (query.q) ? cache_key+'.'+uuidv5(JSON.stringify(query.q), this.ID) : cache_key
+    cache_key = (query.q && query.fields) ? cache_key+'.'+uuidv5(JSON.stringify(query.fields), this.ID) : cache_key
 
 
 
