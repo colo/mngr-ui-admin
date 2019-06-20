@@ -16,11 +16,18 @@ const roundMilliseconds = function(timestamp){
 
 const pluralize = require('pluralize')
 
+const uuidv5 = require('uuid/v5')
+
 module.exports = new Class({
   Extends: App,
 
-  // changes_buffer: [],
-  // changes_buffer_expire: undefined,
+  ID: 'b1f06da2-82bd-4c95-8e4e-a5a25075e39b',
+  registered: {},
+  registered_ids: {},
+  feeds: {},
+  close_feeds: {},
+  changes_buffer: {},
+  changes_buffer_expire: {},
   // logs: [],
 
   FROM: 'periodical',
@@ -35,189 +42,135 @@ module.exports = new Class({
 		requests : {
       once: [
         {
-					distinct_index: function(req, next, app){
-						debug_internals('property', req);
+					default: function(req, next, app){
+						debug_internals('default', req);
+            if(!req.query.register){
+              // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
+              // if(!Array.isArray(distinct_indexes))
+              //   distinct_indexes = [distinct_indexes]
+              //
+              // debug_internals('property', distinct_indexes);
 
-            let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
-            if(!Array.isArray(distinct_indexes))
-              distinct_indexes = [distinct_indexes]
-
-            debug_internals('property', distinct_indexes);
-
-            // app.distinct({
-            //   _extras: {type: 'logs', id: req.id},
-            //   uri: app.options.db+'/periodical',
-            //   args: {index: 'log'}
-            // })
-            let from = req.from || app.FROM
-            from = (from === 'minute' || from === 'hour') ? 'historical' : from
-            /**
-            * reducing last minute of logs should be enough, and is way faster than "distinct" from all docs
-            **/
-            // app.reduce({
-            //   _extras: {from: from, type: 'logs', id: req.id},
-            //   uri: app.options.db+'/'+from,
-            //   args: function(left, right) {
-            //       return left.merge(right)
-            //   },
-            //
-            //   query: app.r.db(app.options.db).
-            //           table(from).
-            //           // between(
-            //           //   Date.now() - app.RANGES[from], //60000
-            //           //   Date.now(),
-            //           //   {index: 'timestamp'}
-            //           // ).
-            //           map(function(doc) {
-            //             return app.r.object(doc("metadata")("tag"), true) // return { <country>: true}
-            //           }.bind(app))
-            // })
-
-            Array.each(distinct_indexes, function(index){
-              // if((!req.params || (req.params && req.params.prop)) && app.distinct_indexes.indexOf(index) > -1){
-              if(app.distinct_indexes.indexOf(index) > -1){
-                app.distinct({
-                  _extras: {
-                    from: from,
-                    type: (req.params && req.params.prop) ? 'prop' : app.options.type,
-                    id: req.id,
-                    prop: pluralize(index)
-                  },
-                  uri: app.options.db+'/periodical',
-                  args: {index: index}
-                })
-              }
-
-            }.bind(app))
-
-
-
-
-					}
-				},
-        {
-					range: function(req, next, app){
-            // debug_internals('get_data_range', req);
-						// if(!req.type || (req.params && req.params.prop == 'range')){
-            if(!req.params || !req.params.prop || req.params.prop == 'range'){
-              debug_internals('range', req);
               let from = req.from || app.FROM
               from = (from === 'minute' || from === 'hour') ? 'historical' : from
 
-              //get last
-              app.nth({
-                _extras: {
-                  from: from,
-                  id: req.id,
-                  prop: 'range',
-                  range_select : 'end',
-                  // domain: req.params.domain,
-                  type: (req.params && req.params.prop) ? 'prop' : app.options.type,
-                },
-                uri: app.options.db+'/'+from,
-                args: -1,
-                query: app.r.db(app.options.db).table(req.from)
-                .orderBy({index: 'timestamp'})
-                .pluck({'metadata': ['timestamp']})
-                // between(
-                //   // [req.params.domain, 'periodical', app.r.now().toEpochTime().mul(1000).sub(5000)],//last 5 secs
-                //   [req.params.domain, req.from, 0],//last 5 secs
-                //   [req.params.domain, req.from, ''],
-                //   {index: 'timestamp'}
-                // )
+              let query = app.r
+                .db(app.options.db)
+                .table(from)
+
+              query = (req.params.prop && req.params.value)
+              ? query
+                .getAll(req.params.value , {index: pluralize(req.params.prop, 1)})
+              : query
+
+              if(req.query && req.query.transformation)
+                query = app.query_with_transformation(query, req.query.transformation)
+
+              query = (req.params.path)
+              ? query
+                .filter( app.r.row('metadata')('path').eq(req.params.path) )
+              : query
+
+              query = query
+                .group( app.r.row('metadata')('path') )
+                .ungroup()
+                .map(
+                  function (doc) {
+                      return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                  }
+                )
+
+
+              query.run(app.conn, function(err, resp){
+                debug_internals('run', err)//resp
+                app.process_default(
+                  err,
+                  resp,
+                  {
+                    _extras: {
+                      from: from,
+                      type: (req.params && req.params.path) ? req.params.path : app.options.type,
+                      id: req.id,
+                      transformation: (req.query.transformation) ? true : false
+                      // prop: pluralize(index)
+                    }
+                  }
+                )
               })
-
-              //get first
-              app.nth({
-                _extras: {
-                  from: from,
-                  id: req.id,
-                  prop: 'range',
-                  range_select : 'start',
-                  // domain: req.params.domain,
-                  type: (req.params && req.params.prop) ? 'prop' : app.options.type,
-                },
-                uri: app.options.db+'/'+req.from,
-                args: 0,
-                query: app.r.db(app.options.db).table(req.from)
-                .orderBy({index: 'timestamp'})
-                .pluck({'metadata': ['timestamp']})
-                // between(
-                //   [req.params.domain, req.from, 0],
-                //   [req.params.domain, req.from, ''],
-                //   {index: 'sort_by_domain'}
-                // )
-              })
-
-
-
 
             }
-
 					}
 				},
+        {
+					register: function(req, next, app){
+						debug_internals('register', req);
 
-        // {
-				// 	data_range: function(req, next, app){
-        //     // debug_internals('get_data_range', req);
-				// 		// if(!req.type || (req.params && req.params.prop == 'data_range')){
-        //     if(!req.params || !req.params.prop || req.params.prop == 'data_range'){
-        //       debug_internals('data_range', req);
-        //       let from = req.from || app.FROM
-        //       from = (from === 'minute' || from === 'hour') ? 'historical' : from
-        //
-        //       //get last
-        //       app.nth({
-        //         _extras: {
-        //           from: from,
-        //           id: req.id,
-        //           prop: 'data_range',
-        //           range_select : 'end',
-        //           // domain: req.params.domain,
-        //           type: (req.params && req.params.prop) ? 'prop' : app.options.type,
-        //         },
-        //         uri: app.options.db+'/'+from,
-        //         args: -1,
-        //         query: app.r.db(app.options.db).table(req.from)
-        //         .orderBy({index: 'logs_by_data.timestamp'})
-        //         .pluck({'data': ['timestamp']})
-        //         // between(
-        //         //   // [req.params.domain, 'periodical', app.r.now().toEpochTime().mul(1000).sub(5000)],//last 5 secs
-        //         //   [req.params.domain, req.from, 0],//last 5 secs
-        //         //   [req.params.domain, req.from, ''],
-        //         //   {index: 'timestamp'}
-        //         // )
-        //       })
-        //
-        //       //get first
-        //       app.nth({
-        //         _extras: {
-        //           from: from,
-        //           id: req.id,
-        //           prop: 'data_range',
-        //           range_select : 'start',
-        //           // domain: req.params.domain,
-        //           type: (req.params && req.params.prop) ? 'prop' : app.options.type,
-        //         },
-        //         uri: app.options.db+'/'+req.from,
-        //         args: 0,
-        //         query: app.r.db(app.options.db).table(req.from)
-        //         .orderBy({index: 'logs_by_data.timestamp'})
-        //         .pluck({'data': ['timestamp']})
-        //         // between(
-        //         //   [req.params.domain, req.from, 0],
-        //         //   [req.params.domain, req.from, ''],
-        //         //   {index: 'sort_by_domain'}
-        //         // )
-        //       })
-        //
-        //
-        //
-        //
-        //     }
-        //
-				// 	}
-				// },
+            if(req.query.register){
+              // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
+              // if(!Array.isArray(distinct_indexes))
+              //   distinct_indexes = [distinct_indexes]
+              //
+              // debug_internals('property', distinct_indexes);
+
+              let from = req.from || app.FROM
+              from = (from === 'minute' || from === 'hour') ? 'historical' : from
+
+              let query = app.r
+                .db(app.options.db)
+                .table(from)
+
+              query = (req.params.prop && req.params.value)
+              ? query
+                .getAll(req.params.value , {index: pluralize(req.params.prop, 1)})
+              : query
+
+              if(req.query.register && req.query.register === 'changes')
+                query = query.changes({includeTypes: true, squash: 1})
+
+              if(req.query && req.query.transformation)
+                query = app.query_with_transformation(query, req.query.transformation)
+
+              query = (req.params.path)
+              ? query
+                .filter( app.r.row('metadata')('path').eq(req.params.path) )
+              : query
+
+              if(!req.query.register || req.query.register !== 'changes')
+                query = query
+                  .group( app.r.row('metadata')('path') )
+                  .ungroup()
+                  .map(
+                    function (doc) {
+                        return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                    }
+                  )
+
+              if(req.query.register){
+                app.register(query, req)
+              }
+              else{
+                query.run(app.conn, function(err, resp){
+                  debug_internals('run', err)//resp
+                  app.process_default(
+                    err,
+                    resp,
+                    {
+                      _extras: {
+                        from: from,
+                        type: (req.params && req.params.path) ? req.params.path : app.options.type,
+                        id: req.id,
+                        transformation: (req.query.transformation) ? true : false
+                        // prop: pluralize(index)
+                      }
+                    }
+                  )
+                })
+              }
+
+
+            }//req.query.register === true
+					}
+				},
 
       ],
 
@@ -225,35 +178,96 @@ module.exports = new Class({
       * periodical data always comes from 'periodical' table
       **/
       periodical: [
-      //   {
-			// 		tags: function(req, next, app){
-			// 			debug_internals('tags');
-      //
-      //       /**
-      //       * reducing last minute of tags should be enough, and is way faster than "distinct" from all docs
-      //       **/
-      //       // app.reduce({
-      //       //   _extras: {from: 'periodical', type: 'tags', id: undefined},
-      //       //   uri: app.options.db+'/periodical',
-      //       //   args: function(left, right) {
-      //       //       return left.merge(right)
-      //       //   },
-      //       //
-      //       //   query: app.r.db(app.options.db).table('periodical').between(Date.now() - app.RANGES['periodical'], Date.now(), {index: 'timestamp'}).map(function(doc) {
-      //       //     return app.r.object(doc("metadata")("tag"), true) // return { <country>: true}
-      //       //   }.bind(app))
-      //       // })
-      //
-      //       app.distinct({
-      //         _extras: {from: from, type: app.options.type, id: undefined},
-      //         uri: app.options.db+'/periodical',
-      //         args: {index: 'tags'}
-      //       })
-      //
-			// 		}
-			// 	},
-
       ],
+
+      range: [
+        {
+					default: function(req, next, app){
+						debug_internals('default range', req);
+
+            let start, end
+            end = (req.opt && req.opt.range) ? req.opt.range.end : Date.now()
+            start  = (req.opt && req.opt.range) ? req.opt.range.start : end - 10000 //10 secs
+
+            let range = 'posix '+start+'-'+end+'/*'
+
+            // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
+            // if(!Array.isArray(distinct_indexes))
+            //   distinct_indexes = [distinct_indexes]
+            //
+            // debug_internals('property', distinct_indexes);
+
+            let from = req.from || app.FROM
+            from = (from === 'minute' || from === 'hour') ? 'historical' : from
+
+            let index = "timestamp"
+
+            let query = app.r
+              .db(app.options.db)
+              .table(from)
+
+            index = (req.params.prop && req.params.value)
+            ? pluralize(req.params.prop, 1)+'.timestamp'
+            : index
+
+            start = (req.params.prop && req.params.value)
+            ? [req.params.value, start]
+            : start
+
+            end = (req.params.prop && req.params.value)
+            ? [req.params.value, end]
+            : end
+
+            query = (req.params.path)
+            ? query
+              .between(
+              	start,
+              	end,
+              	{index: index}
+              )
+              .filter( app.r.row('metadata')('path').eq(req.params.path) )
+            : query
+              .between(
+              	start,
+              	end,
+              	{index: index}
+              )
+
+
+
+            if(req.query && req.query.transformation)
+              query = app.query_with_transformation(query, req.query.transformation)
+
+            query
+              .group(app.r.row('metadata')('path'))
+              .ungroup()
+              .map(
+                function (doc) {
+                    return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                }
+            )
+            .run(app.conn, function(err, resp){
+              debug_internals('run', err) //resp
+              app.process_default(
+                err,
+                resp,
+                {
+                  _extras: {
+                    from: from,
+                    type: (req.params && req.params.path) ? req.params.path : app.options.type,
+                    id: req.id,
+                    Range: range,
+                    transformation: (req.query.transformation) ? true : false
+                    // prop: pluralize(index)
+                  }
+                }
+              )
+            })
+
+
+					}
+				},
+      ]
 
 		},
 
@@ -263,14 +277,14 @@ module.exports = new Class({
       //   path: ':database/:table',
       //   callbacks: ['distinct']
       // }],
-      distinct: [{
-        path: ':database/:table',
-        callbacks: ['distinct']
-      }],
-      nth: [{
-        path: ':database/:table',
-        callbacks: ['range']
-      }],
+      // distinct: [{
+      //   path: ':database/:table',
+      //   callbacks: ['distinct']
+      // }],
+      // nth: [{
+      //   path: ':database/:table',
+      //   callbacks: ['range']
+      // }],
       // changes: [{
       //   // path: ':database/:table',
       //   path: '',
@@ -282,11 +296,7 @@ module.exports = new Class({
 
   },
 
-  // custom: ['range', 'data_range'],
-  // distinct_indexes: ['tag', 'type', 'host', 'domain',],
-  custom: ['range'],
-  distinct_indexes: ['tag', 'type', 'host', 'path'],
-  type_props: {},
+
 
   initialize: function(options){
     // let paths = []
@@ -310,41 +320,181 @@ module.exports = new Class({
 
 		this.log('mngr-ui-admin:apps:libs:Pipeline:Inputs:Rethinkdb', 'info', 'mngr-ui-admin:apps:libs:Pipeline:Inputs:Rethinkdb started');
   },
+  query_with_transformation: function(query, transformation){
+    let _query_transform, _query_transform_value
 
-  distinct: function(err, resp, params){
-    // debug_internals('distinct', err, resp)
+    if(transformation){
+      if(typeof transformation === 'string'){
+        _query_transform = transformation.split(':')[0]
+        _query_transform_value = transformation.split(':').slice(1)
+      }
+      else{
+        _query_transform = Object.keys(transformation)[0]
+        _query_transform_value = transformation[_query_transform]
+      }
+      switch(_query_transform){
+        case 'sample':
+          query = query.sample(_query_transform_value[0] * 1)
+          break;
+
+        case 'limit':
+          query = query.limit(_query_transform_value[0] * 1)
+          break;
+
+        case 'skip':
+          query = query.skip(_query_transform_value[0] * 1)
+          break;
+
+        case 'slice':
+          query = query.slice(_query_transform_value[0] * 1, _query_transform_value[1] * 1, _query_transform_value[2])
+          break;
+      }
+    }
+
+    return query
+  },
+  build_default_result: function(doc){
+    let self = this
+    return {
+      path: doc('group'),
+      hosts: doc('reduction').filter(function (doc) {
+        return doc('metadata').hasFields('host');
+      }).map(function(doc) {
+        return self.r.object(doc('metadata')('host'), true) // return { <country>: true}
+      }).reduce(function(left, right) {
+          return left.merge(right)
+      }).default({}).keys(),
+      types: doc('reduction').filter(function (doc) {
+        return doc('metadata').hasFields('type');
+      }).map(function(doc) {
+        return self.r.object(doc('metadata')('type'), true) // return { <country>: true}
+      }).reduce(function(left, right) {
+          return left.merge(right)
+      }).default({}).keys(),
+      tags: doc('reduction').filter(function (doc) {
+        return doc('metadata').hasFields('tag');
+      }).concatMap(function(doc) {
+        return doc('metadata')('tag')
+      }).distinct(),
+      range: [
+        doc('reduction').min(
+          function (set) {
+              return set('metadata')('timestamp')
+          }
+        )('metadata')('timestamp'),
+        doc('reduction').max(
+          function (set) {
+              return set('metadata')('timestamp')
+          }
+        )('metadata')('timestamp'),
+      ]
+    }
+  },
+  build_default_query_result: function(doc, query){
+    debug_internals('build_default_query_result %o', query)
+
+    let self = this
+    let r_query = doc('reduction')
+
+    let query_with_fields = {}
 
 
-    let extras = params.options._extras
-    let domain = extras.domain
-    let prop = extras.prop
+    let _return_obj = {
+      path: doc('group')
+    }
+
+    // if(query.q)
+      // _return_obj = this.build_query_fields(_return_obj, query)
+
+    // if(typeof query.q === 'string'){
+    //   if(query.fields){
+    //
+    //     try{
+    //       query.fields = JSON.parse(query.fields)
+    //     }
+    //     catch(e){
+    //
+    //     }
+    //     query_with_fields[query.q] = query.fields
+    //   }
+    //
+    //   debug_internals('build_default_query_result %o', query, query_with_fields)
+    //
+    //   r_query = (query.fields)
+    //   ? r_query.withFields(query_with_fields)(query.q)
+    //   : r_query.withFields(query.q)(query.q)
+    //
+    //   _return_obj[query.q] = r_query
+    // }
+    // else{
+    //   // _return_obj['docs'] = r_query.pluck(this.r.args(query.q))
+    //   _return_obj = r_query.pluck(this.r.args(query.q))
+    // }
+    if(typeof query.q === 'string'){
+
+      _return_obj[query.q] = this.build_query_fields(r_query, query)
+    }
+    else{
+      // _return_obj['docs'] = r_query.pluck(this.r.args(query.q))
+      _return_obj = this.build_query_fields(r_query, query)
+    }
+
+
+
+
+
+    return _return_obj
+  },
+  build_query_fields: function(r_query, query){
+    if(typeof query.q === 'string'){
+      if(query.fields){
+
+        try{
+          query.fields = JSON.parse(query.fields)
+        }
+        catch(e){
+
+        }
+        query_with_fields[query.q] = query.fields
+      }
+
+      debug_internals('build_default_query_result %o', query, query_with_fields)
+
+      r_query = (query.fields)
+      ? r_query.withFields(query_with_fields)(query.q)
+      : r_query.withFields(query.q)(query.q)
+
+      // _return_obj[query.q] = r_query
+    }
+    else{
+      // _return_obj['docs'] = r_query.pluck(this.r.args(query.q))
+      // _return_obj = r_query.pluck(this.r.args(query.q))
+      r_query = r_query.pluck(this.r.args(query.q))
+    }
+
+    return r_query
+  },
+  process_default: function(err, resp, params){
+    debug_internals('process_default', err, params)
+
+    let extras = params._extras
     let type = extras.type
     let id = extras.id
+    let transformation = extras.transformation
 
     delete extras.type
 
-    // extras.type = (id === undefined) ? 'prop' : app.options.type
-    // extras.type = (extras.type === app.options.type) ? extras.type : extras.prop
-
-    // extras[extras.type] = this.type_props
-
-    // if(!this.domains[domain] || type == 'prop') this.domains[domain] = {}
-
-    // this.domains[domain][prop] = (resp) ? Object.keys(resp) : null
-
-
-
     if(err){
-      debug_internals('distinct err', err)
+      debug_internals('process_default err', err)
 
-			if(params.uri != ''){
-				this.fireEvent('on'+params.uri.charAt(0).toUpperCase() + params.uri.slice(1)+'Error', err);//capitalize first letter
-			}
-			else{
+			// if(params.uri != ''){
+			// 	this.fireEvent('on'+params.uri.charAt(0).toUpperCase() + params.uri.slice(1)+'Error', err);//capitalize first letter
+			// }
+			// else{
 				this.fireEvent('onGetError', err);
-			}
+			// }
 
-			this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
+			// this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
 
 			this.fireEvent(
 				this[
@@ -353,154 +503,135 @@ module.exports = new Class({
 				[err, extras]
 			);
     }
+
+    if(!err && Array.isArray(resp) && resp.length === 0)
+      err = {
+        status: 404,
+        message: 'Not Found'
+      }
+
+    extras[type] = (type === 'all') ? resp : (Array.isArray(resp)) ? resp[0]: resp
+    if(transformation && type === 'all')
+      extras[type] = extras[type][0]
+
+    delete extras.prop
+    delete extras.type
+
+
+    if(err){
+      this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
+    }
     else{
-      // let type = params.options._extras.type
+
+      this.fireEvent(this.ON_DOC, [extras, Object.merge({input_type: this, app: null})]);
+    }
 
 
-      // let arr = (resp) ? Object.keys(resp) : null
-      resp.toArray(function(err, arr){
-        // resp.toArray(function(err, arr){
 
-        debug_internals('distinct count', arr, type)
-        this.type_props[extras.prop] = arr
-        // extras[type] = (type === 'logs') ? this.type_props : this.type_props[extras.prop]
-        if(type === this.options.type){
-          extras[this.options.type] = this.type_props
+  },
+  register: function(query, req){
+    debug_internals('register %o %O', query, req)
+    let {id} = req
+    delete req.id
+
+    let uuid = uuidv5(JSON.stringify(req), this.ID)
+
+    debug_internals('register uuid %s', uuid)
+
+    if(!this.registered[uuid]) this.registered[uuid] = query
+    if(!this.registered_ids[uuid]) this.registered_ids[uuid] = []
+    this.registered_ids[uuid].combine([id])
+
+
+    // if(!this.registered[host][prop]) this.registered[host][prop] = []
+    // this.registered[host][prop].push(id)
+
+    if(!this.feeds[uuid]){
+      debug_internals('registered %o %o', this.registered, this.registered_ids, req.query.q)
+
+      // this.addEvent('onSuspend', this.__close_changes.pass(uuid, this))
+
+
+      if(!this.changes_buffer[uuid]) this.changes_buffer[uuid] = []
+
+      if(!this.changes_buffer_expire[uuid]) this.changes_buffer_expire[uuid] = Date.now()
+
+      if(req.query.q && typeof req.query.q !== 'string')
+        query = this.build_query_fields(query, {q: [{new_val: req.query.q }, 'type']})
+
+      query
+        // .group( this.r.row('metadata')('path') )
+        // .ungroup()
+        // .map(
+        //   function (doc) {
+        //       return (req.query && req.query.q) ? self.build_default_query_result(doc, req.query) : self.build_default_result(doc)
+        //   }.bind(this)
+        // )
+        // .pluck({'new_val': this.r.args(req.query.q)})
+        // .withFields({'new_val': ['data', 'metadata']})
+        .run(this.conn, {maxBatchSeconds: 1, includeTypes: true}, function(err, cursor) {
+
+        debug_internals('registered %o %o', err, cursor)
+        if(err){
+
         }
         else{
-          extras[this.options.type] = {}
-          extras[this.options.type][extras.prop]
-          extras[this.options.type][extras.prop] = this.type_props[extras.prop]
-        }
+          this.feeds[uuid] = cursor
 
-        // if(extras.type === 'logs')
-        delete extras.prop
-        delete extras.type
+          // cursor.on("data", function(message) {
+          //   debug_internals('changes %s', new Date(), message)
+          // })
 
-        let properties = [].combine(this.distinct_indexes).combine(this.custom)
+          this.feeds[uuid].each(function(err, row){
+            // debug_internals('changes %s', new Date(), err, row)
 
-        if(type == 'prop' || (Object.keys(this.type_props).length == properties.length)){
-          let found = false
-          Object.each(this.type_props, function(data, property){//if at least a property has data, domain exist
-            if(data !== null && ((Array.isArray(data) || data.length > 0) || Object.getLength(data) > 0))
-              found = true
-          })
+            /**
+            * https://www.rethinkdb.com/api/javascript/each/
+            * Iteration can be stopped prematurely by returning false from the callback.
+            */
+            if(this.close_feeds[uuid] === true){ this.close_feeds[uuid] = false; this.feeds[uuid] = undefined; return false }
 
-          if(err){
-            // let err = {}
-            // err['status'] = 404
-            // err['message'] = 'not found'
-            this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
-          }
-          else if(!found){
-            let err = {}
-            err['status'] = 404
-            err['message'] = 'not found'
-            this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
-          }
-          else{
+            // debug_internals('changes %s', new Date())
+            if(row && row !== null ){
+              if(row.type == 'add'){
+                // debug_internals('changes add %s %o', new Date(), row.new_val)
+                // debug_internals("changes add now: %s \n timstamp: %s \n expire: %s \n host: %s \n path: %s",
+                //   new Date(roundMilliseconds(Date.now())),
+                //   new Date(roundMilliseconds(row.new_val.metadata.timestamp)),
+                //   new Date(roundMilliseconds(this.changes_buffer_expire[host])),
+                //   row.new_val.metadata.host,
+                //   row.new_val.metadata.path
+                // )
 
-            this.fireEvent(this.ON_DOC, [extras, Object.merge({input_type: this, app: null})]);
-          }
+                this.changes_buffer[uuid].push(row.new_val)
+              }
 
-          this.type_props = {}
+              if(this.changes_buffer_expire[uuid] < Date.now() - 900 && this.changes_buffer[uuid].length > 0){
+                // console.log('onPeriodicalDoc', this.changes_buffer.length)
+
+                // this.__process_changes(this.changes_buffer[uuid])
+
+                debug_internals('changes %s', new Date(), this.changes_buffer[uuid])
+
+                this.changes_buffer_expire[uuid] = Date.now()
+                this.changes_buffer[uuid] = []
+
+
+              }
+
+            }
+
+
+          }.bind(this))
+
         }
 
 
       }.bind(this))
 
-
-
-    }
-  },
-  range: function(err, resp, params){
-    debug_internals('range', err, resp, params.options)
-
-    let extras = params.options._extras
-    let range_select = extras.range_select //start | end
-    // let domain = extras.domain
-    let prop = extras.prop
-    let type = extras.type
-    let id = extras.id
-
-    // extras.type = (id === undefined) ? 'prop' : 'logs'
-
-    if(!this.type_props[extras.prop]) this.type_props[extras.prop] = {start: undefined, end: undefined}
-
-    delete extras.range_select
-    delete extras.type
-
-    if(prop === 'data_range'){
-      this.type_props[extras.prop][range_select] = (resp && resp.data && resp.data.timestamp) ? resp.data.timestamp : null
-    }
-    else{
-      this.type_props[extras.prop][range_select] = (resp && resp.metadata && resp.metadata.timestamp) ? resp.metadata.timestamp : null
     }
 
 
-    if(err){
-      // debug_internals('reduce err', err)
-
-			if(params.uri != ''){
-				this.fireEvent('on'+params.uri.charAt(0).toUpperCase() + params.uri.slice(1)+'Error', err);//capitalize first letter
-			}
-			else{
-				this.fireEvent('onGetError', err);
-			}
-
-			if(
-        this.type_props[extras.prop]['start'] !== undefined
-        && this.type_props[extras.prop]['end'] !== undefined
-      )
-        this.fireEvent(this.ON_DOC_ERROR, [err, extras])
-
-			this.fireEvent(
-				this[
-					'ON_'+this.options.requests.current.type.toUpperCase()+'_DOC_ERROR'
-				],
-				err
-			);
-    }
-    else{
-
-      if(this.type_props[prop]['start'] !== undefined && this.type_props[prop]['end'] !== undefined ){
-        if(type === this.options.type)
-          delete extras.prop
-
-        let properties = [].combine(this.distinct_indexes).combine(this.custom)
-
-        if(type === this.options.type){
-          extras[this.options.type] = this.type_props
-        }
-        else{
-          extras[this.options.type] = {}
-          extras[this.options.type][extras.prop]
-          extras[this.options.type][extras.prop] = this.type_props[extras.prop]
-        }
-
-        if(type == 'prop' || (Object.keys(this.type_props).length == properties.length)){
-          let found = false
-          Object.each(this.type_props, function(data, property){//if at least a property has data, domain exist
-            if(data !== null && ((Array.isArray(data) || data.length > 0) || Object.getLength(data) > 0))
-              found = true
-          })
-
-          if(!found){
-            let err = {}
-            err['status'] = 404
-            err['message'] = 'not found'
-            this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
-          }
-          else{
-
-            this.fireEvent(this.ON_DOC, [extras, Object.merge({input_type: this, app: null})]);
-          }
-
-          this.type_props = {}
-        }
-      }
-
-    }
   },
   // changes: function(err, resp, params){
   //   debug_internals('changes %o %o %o %s', err, resp, params, new Date())

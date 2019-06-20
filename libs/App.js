@@ -222,9 +222,9 @@ module.exports = new Class({
     if(err)
       result = Object.merge(err, result)
 
-    if(format && !err){
+    if(format && !err && (result[input].length > 0 || Object.getLength(result[input]) > 0)){
       let stat = {}
-      stat[input] = result[input]
+      stat[input] = (!Array.isArray(result[input])) ? [result[input]] : result[input]
       this.__transform_data('stat', '', stat, this.ID, function(value){
         debug_internals(input+': __transform_data stat %O', value.stat) //result
 
