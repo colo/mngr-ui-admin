@@ -42,6 +42,7 @@ module.exports = new Class({
   __responses: {},
 
   options: {
+    libs: path.join(process.cwd(), '/libs'),
     /**
     * desde 'hosts', mover a global
     **/
@@ -224,13 +225,14 @@ module.exports = new Class({
     if(format && !err){
       let stat = {}
       stat[input] = result[input]
-      this.__transform_data('stat',stat , this.ID, function(value){
+      this.__transform_data('stat', '', stat, this.ID, function(value){
         debug_internals(input+': __transform_data stat %O', value.stat) //result
 
         result[input] = value.stat[input]
 
         if( format == 'tabular' ){
-          this.__transform_data('tabular', value.stat[input], this.id, function(value){
+
+          this.__transform_data('tabular', input, value.stat[input], this.id, function(value){
             debug_internals(input+': __transform_data tabular %O', value) //result
 
             result[input] = value
@@ -861,7 +863,7 @@ module.exports = new Class({
 
     return result
   },
-  __transform_data: function(type, data, cache_key, cb){
+  __transform_data: function(type, data_path, data, cache_key, cb){
     debug_internals('__transform_data', type)
     let convert = (type == 'stat') ? this.data_to_stat : this.data_to_tabular
 
@@ -880,7 +882,7 @@ module.exports = new Class({
     **/
     let transform_result_length = 0
     Object.each(data, function(d, path){
-      let transform = this.__traverse_path_require(type, path, d)
+      let transform = this.__traverse_path_require(type, (data_path && data_path !== '') ? data_path+'.'+path : path, d)
 
       if(transform && typeof transform == 'function'){
         transform_result_length += Object.getLength(transform(d))
@@ -913,7 +915,7 @@ module.exports = new Class({
           (d[0] && d[0].metadata && !d[0].metadata.format && type == 'stat')
           || (d[0] && !d[0].metadata && type == 'tabular')
         ){
-          let transform = this.__traverse_path_require(type, path, d) //for each path find a transform or use "default"
+          let transform = this.__traverse_path_require(type, (data_path && data_path !== '') ? data_path+'.'+path : path, d) //for each path find a transform or use "default"
 
           // debug_internals('__transform_data', d)
           if(transform){
@@ -1248,9 +1250,10 @@ module.exports = new Class({
     path = path.replace(/_/g, '.')
     original_path = original_path.replace(/_/g, '.')
 
-    // debug_internals('__traverse_path_require %s', path, original_path)
+    debug_internals('__traverse_path_require %s', this.options.libs+'/'+type+'/'+path)
+
     try{
-      let chart = require('./'+type+'/'+path)(stat, original_path)
+      let chart = require(this.options.libs+'/'+type+'/'+path)(stat, original_path)
 
       return chart
     }
