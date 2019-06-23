@@ -101,9 +101,10 @@ module.exports = new Class({
 			next = args[1]
 		}
 
-		let params = {}
-		if(typeof(req) != 'undefined'){
-			params = req.params
+		// let params = {}
+    let opts = {}
+		if(typeof(req) !== 'undefined'){
+			opts = {params: req.params, body: req.body, query: req.query}
 		}
 		else{
       // // ////console.log('socket', args)
@@ -116,13 +117,22 @@ module.exports = new Class({
       //   })
       // }
       // else{
-	     params = args[2]
+	     // params = args[2]
       // }
+      if(args[3]){
+        opts = []
+        for(let i = 2; i < args.length; i++){
+          opts.push(args[i])
+        }
+      }
+      else{
+        opts = args[2]
+      }
 		}
 
 
-
-		return {req, resp, socket, next, params}
+    // debug_internals('_arguments', {req, resp, socket, next, params})
+		return {req, resp, socket, next, opts}
 	},
 
   initialize: function(options){
@@ -133,8 +143,8 @@ module.exports = new Class({
   				Array.each(routes, function(route){
   					//debug('route: ' + verb);
             route.callbacks.unshift('__process_pipeline')
-  					route.callbacks.unshift('__process_session')
             route.callbacks.unshift('__process_request')
+  					route.callbacks.unshift('__process_session')
             // route.callbacks.push('test');
             //
   					// if(verb == 'get')//users can "read" info
@@ -153,7 +163,8 @@ module.exports = new Class({
   				Array.each(routes, function(route){
   					//debug('route: ' + verb);
             route.callbacks.unshift('__process_pipeline')
-  					route.callbacks.unshift('__process_session');
+            route.callbacks.unshift('__process_request')
+            route.callbacks.unshift('__process_session')
             //
   					// if(verb == 'get')//users can "read" info
   					// 	route.roles = ['user']
@@ -216,8 +227,8 @@ module.exports = new Class({
     }
   },
   generic_response: function(payload){
-    debug_internals('generic_response', payload)
     let {err, result, resp, input, format} = payload
+    debug_internals('generic_response', err,result,input, format)
 
     let status = (err && err.status) ? err.status : ((err) ? 500 : 200)
     if(err)
@@ -429,8 +440,10 @@ module.exports = new Class({
 
     socket.compress(true)
 
+    // this.__process_session({socket, next: this.__process_pipeline.pass({next: this.__process_request})})
+
 		socket.on('disconnect', function () {
-      debug_internals('socket.io disconnect', socket.id)
+      debug_internals('socket.io disconnect', socket.id, this.__pipeline, this.__pipeline_cfg)
 
       this.__get_session_id_by_socket(socket.id, function(err, sid){
         debug_internals('disconnect __get_session_by_socket', err, sid)
@@ -438,7 +451,7 @@ module.exports = new Class({
           this.__update_sessions({id: sid, type: 'socket'}, true)//true == remove
       }.bind(this))
 
-      if(this.__pipeline_cfg.ids.contains(socket.id)){
+      if(this.__pipeline_cfg && this.__pipeline_cfg.ids.contains(socket.id)){
         this.__pipeline_cfg.ids.erase(socket.id)
         this.__pipeline_cfg.ids = this.__pipeline_cfg.ids.clean()
       }
@@ -478,7 +491,7 @@ module.exports = new Class({
 
 
 
-      if(this.__pipeline_cfg.ids.length === 0 && this.__pipeline_cfg){ // && this.pipeline.suspended == false
+      if(this.__pipeline_cfg && this.__pipeline_cfg.ids.length === 0 && this.__pipeline_cfg){ // && this.pipeline.suspended == false
         this.__pipeline_cfg.suspended = true
         this.__pipeline.fireEvent('onSuspend')
       }
@@ -509,10 +522,12 @@ module.exports = new Class({
   * middleware callback (injected on initialize)
   **/
   __process_pipeline: function(){
-    let {req, resp, socket, next, params} = this._arguments(arguments)
+    debug_internals('__process_pipeline', arguments)
+    let {req, resp, socket, next, opts} = this._arguments(arguments)
+
     let id = (socket) ? socket.id : undefined
 
-    debug_internals('__process_pipeline', id)
+
     // let { id, cb } = (
     //   arguments[0]
     //   && typeof arguments[0] === 'function'
@@ -697,13 +712,17 @@ module.exports = new Class({
   * middleware callback (injected on initialize)
   **/
   __process_request: function(){
-    let {req, resp, socket, next, params} = this._arguments(arguments)
-    if(process.env.NODE_ENV === 'production'){
+    debug_internals('__process_request', arguments)
+    let {req, resp, socket, next, opts} = this._arguments(arguments)
+
+
+    if(process.env.NODE_ENV === 'production' && req && req.query){
       delete req.query.register
       debug_internals('__process_request cleaning req.query...', req.query)
     }
 
-    next()
+    if(next)
+      next()
   },
 
   /**
@@ -714,9 +733,8 @@ module.exports = new Class({
   * middleware callback (injected on initialize)
   **/
   __process_session: function(){
-    debug_internals('__process_session')
-    let {req, resp, socket, next, params} = this._arguments(arguments)
-
+    let {req, resp, socket, next, opts} = this._arguments(arguments)
+    debug_internals('__process_session', arguments)
 
     let session = (socket) ? socket.handshake.session : req.session
     // let id = (socket) ? socket.id : req.session.id
@@ -740,7 +758,8 @@ module.exports = new Class({
     }
 
     // return session
-    next()
+    if(next)
+      next()
   },
 
   __update_sessions: function(session, remove){
