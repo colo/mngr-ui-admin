@@ -43,7 +43,7 @@ module.exports = new Class({
         {
 					default: function(req, next, app){
 						debug_internals('default', req);
-            if(!req.query.register){
+            if(!req.query || !req.query.register){
               // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
               // if(!Array.isArray(distinct_indexes))
               //   distinct_indexes = [distinct_indexes]

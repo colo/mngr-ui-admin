@@ -128,6 +128,7 @@ module.exports = new Class({
       else{
         opts = args[2]
       }
+      opts = opts || {params: {}, body: {}, query: {}}
 		}
 
 
@@ -200,13 +201,15 @@ module.exports = new Class({
 
 		this.log('mngr-ui-admin-app', 'info', 'mngr-ui-admin-app started');
   },
-  register_response(socket_or_req, cb){
-    debug_internals('register_response', socket_or_req.session)
+  register_response: function(socket_or_req, cb){
+    // debug_internals('register_response', socket_or_req.id)
     let id = (socket_or_req.id) ? socket_or_req.id : socket_or_req.session.id
     let session = (socket_or_req.session) ? socket_or_req.session : socket_or_req.handshake.session
 
     session._resp = session._resp+1 || 0
     let resp_id = id +'.'+session._resp
+
+    debug_internals('register_response', resp_id)
     if(resp_id){
       let _chain = new Chain()
       _chain.chain(
@@ -216,10 +219,12 @@ module.exports = new Class({
       this.__responses[resp_id] = _chain
       return {id: resp_id, chain: _chain}
     }
-
-    throw new Error('Couldn\'t register response, no ID')
+    else{
+      throw new Error('Couldn\'t register response, no ID')
+    }
   },
   response: function (id, err, resp){
+    debug_internals('response', id, err, resp)
     // let id = (socket_or_req.id) ? socket_or_req.id : socket_or_req.session.id
     if(this.__responses[id]){
       let _chain = this.__responses[id]
@@ -227,7 +232,7 @@ module.exports = new Class({
     }
   },
   generic_response: function(payload){
-    let {err, result, resp, input, format} = payload
+    let {err, result, resp, socket, input, format} = payload
     debug_internals('generic_response', err,result,input, format)
 
     let status = (err && err.status) ? err.status : ((err) ? 500 : 200)
@@ -285,17 +290,18 @@ module.exports = new Class({
 
   },
   get_from_input: function(payload){
+    debug_internals('get_from_input', payload)
     let {response, from, next, req, input, params, key, range, query} = payload
     from = from || 'periodical'
     let cache_key = (key) ? input+'.'+from+'.'+key : input+'.'+from
-    cache_key = (params.prop && params.value) ? cache_key+'.'+params.prop+'.'+params.value : cache_key
-    cache_key = (query.q) ? cache_key+'.'+uuidv5(JSON.stringify(query.q), this.ID) : cache_key
-    cache_key = (query.q && query.fields) ? cache_key+'.'+uuidv5(JSON.stringify(query.fields), this.ID) : cache_key
+    cache_key = (params && params.prop && params.value) ? cache_key+'.'+params.prop+'.'+params.value : cache_key
+    cache_key = (query && query.q) ? cache_key+'.'+uuidv5(JSON.stringify(query.q), this.ID) : cache_key
+    cache_key = (query && query.q && query.fields) ? cache_key+'.'+uuidv5(JSON.stringify(query.fields), this.ID) : cache_key
 
 
 
     // let joined_params = (params) ? '.'+Object.values(params).join('.') : ''
-    // debug_internals('get_from_input', payload, joined_params)
+
 
     // this.cache.get(input+'.'+from+joined_params, function(err, result){
     debug_internals('__get cache key %s %s', cache_key, input.toUpperCase(), this[input.toUpperCase()+'_TTL'])
@@ -303,7 +309,7 @@ module.exports = new Class({
     this.cache.get(cache_key, function(err, result){
       debug_internals('__get cache ERR %o %d %s',  (err) ? true : false, (err) ? err.status : 200, (err) ? new Date(err.expired) : '')
 
-      if(!result || range !== undefined || query.transformation){//even on result ranges search are not used from cache
+      if(!result || range !== undefined || (query && query.transformation)){//even on result ranges search are not used from cache
         this.get_pipeline(req, function(pipe){
             debug_internals('__get get_pipeline', pipe)
 
@@ -313,7 +319,7 @@ module.exports = new Class({
 
               if(resp.id == response){
 
-                if(!range && !query.transformation){//don't cache ranges searchs
+                if(!range && (!query || !query.transformation)){//don't cache ranges searchs
                   let cache_resp = Object.clone(resp)
 
                   this.cache.set(cache_key, cache_resp[input], this[input.toUpperCase()+'_TTL'])
@@ -323,7 +329,7 @@ module.exports = new Class({
                 // //   // this.cache.set(input+'.'+from+joined_params, resp[input], this[input.toUpperCase()+'_TTL'])
                 //   this.cache.set(cache_key, resp[input], this[input.toUpperCase()+'_TTL'])
                 // }
-                if(params.prop && !params.value){
+                if(params && params.prop && !params.value){
                   let _arr_resp = resp[input]
                   if(!Array.isArray(_arr_resp))
                     _arr_resp = [_arr_resp]
@@ -388,7 +394,7 @@ module.exports = new Class({
         // this.response(response, {from: from, input: 'domains', domains: result})
         debug_internals('from cache %o', params, result)
         let resp = {id: response, from, input}
-        if(Object.every(params, function(value, key){ return value === undefined || key === 'path' }) || params.value){
+        if(params && Object.every(params, function(value, key){ return value === undefined || key === 'path' }) || params.value){
           resp[input] = result
         }
         else{
@@ -401,7 +407,7 @@ module.exports = new Class({
           Array.each(_arr_resp, function(data, index){
             Object.each(data, function(value, key){
               debug_internals('_get_resp delete key %s %s', key, params.prop)
-              if( key !== params.prop)
+              if(params && key !== params.prop)
                 delete data[key]
             })
           })
