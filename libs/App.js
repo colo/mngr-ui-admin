@@ -224,7 +224,7 @@ module.exports = new Class({
     }
   },
   response: function (id, err, resp){
-    debug_internals('response', id, err, resp)
+    debug_internals('response', id, err)
     // let id = (socket_or_req.id) ? socket_or_req.id : socket_or_req.session.id
     if(this.__responses[id]){
       let _chain = this.__responses[id]
@@ -233,7 +233,7 @@ module.exports = new Class({
   },
   generic_response: function(payload){
     let {err, result, resp, socket, input, format} = payload
-    debug_internals('generic_response', err,result,input, format)
+    debug_internals('generic_response', err, input, format)
 
     let status = (err && err.status) ? err.status : ((err) ? 500 : 200)
     if(err)
@@ -309,7 +309,12 @@ module.exports = new Class({
     this.cache.get(cache_key, function(err, result){
       debug_internals('__get cache ERR %o %d %s',  (err) ? true : false, (err) ? err.status : 200, (err) ? new Date(err.expired) : '')
 
-      if(!result || range !== undefined || (query && query.transformation)){//even on result ranges search are not used from cache
+      if(
+        !result
+        || range !== undefined
+        || (query && query.transformation)
+        || (query && query.aggregation)
+      ){//even on result ranges search are not used from cache
         this.get_pipeline(req, function(pipe){
             debug_internals('__get get_pipeline', pipe)
 
@@ -319,7 +324,10 @@ module.exports = new Class({
 
               if(resp.id == response){
 
-                if(!range && (!query || !query.transformation)){//don't cache ranges searchs
+                if(
+                  !range
+                  && (!query || (!query.transformation && !query.aggregation))
+                ){//don't cache ranges searchs
                   let cache_resp = Object.clone(resp)
 
                   this.cache.set(cache_key, cache_resp[input], this[input.toUpperCase()+'_TTL'])
@@ -718,7 +726,7 @@ module.exports = new Class({
   * middleware callback (injected on initialize)
   **/
   __process_request: function(){
-    debug_internals('__process_request', arguments)
+    // debug_internals('__process_request', arguments)
     let {req, resp, socket, next, opts} = this._arguments(arguments)
 
 

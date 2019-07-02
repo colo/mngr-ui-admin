@@ -338,6 +338,85 @@ module.exports = new Class({
 
     return query
   },
+  result_with_aggregation: function(query, aggregation){
+
+    let _query_aggregation, _query_aggregation_value
+
+    if(aggregation){
+      if(typeof aggregation === 'string'){
+        _query_aggregation = aggregation.split(':')[0]
+        _query_aggregation_value = aggregation.split(':').slice(1)
+      }
+      else{
+        _query_aggregation = Object.keys(aggregation)[0]
+        _query_aggregation_value = aggregation[_query_aggregation]
+      }
+
+      debug_internals('query_with_aggregation %o', aggregation, _query_aggregation, _query_aggregation_value)
+
+      switch(_query_aggregation){
+        case 'count':
+          query = query.count()
+          break;
+
+        case 'sum':
+          if(_query_aggregation_value){
+            query = query
+            .values()
+
+
+
+
+          }
+          else{
+            query = query.sum()
+          }
+          break;
+
+        // case 'limit':
+        //   query = query.limit(_query_aggregation_value[0] * 1)
+        //   break;
+        //
+        // case 'skip':
+        //   query = query.skip(_query_aggregation_value[0] * 1)
+        //   break;
+        //
+        // case 'slice':
+        //   query = query.slice(_query_aggregation_value[0] * 1, _query_aggregation_value[1] * 1, _query_aggregation_value[2])
+        //   break;
+      }
+    }
+
+    // if(typeof query.q === 'string'){
+    //   let query_with_fields = {}
+    //
+    //   if(query.fields){
+    //
+    //     try{
+    //       query.fields = JSON.parse(query.fields)
+    //     }
+    //     catch(e){
+    //
+    //     }
+    //     query_with_fields[query.q] = query.fields
+    //   }
+    //
+    //   debug_internals('build_default_query_result %o', query, query_with_fields)
+    //
+    //   r_query = (query.fields)
+    //   ? r_query.withFields(query_with_fields)(query.q)
+    //   : r_query.withFields(query.q)(query.q)
+    //
+    //   // _return_obj[query.q] = r_query
+    // }
+    // else{
+    //   // _return_obj['docs'] = r_query.pluck(this.r.args(query.q))
+    //   // _return_obj = r_query.pluck(this.r.args(query.q))
+    //   r_query = r_query.pluck(this.r.args(query.q))
+    // }
+
+    return query
+  },
   build_default_result: function(doc){
     let self = this
     return {
@@ -416,16 +495,28 @@ module.exports = new Class({
     //   _return_obj = r_query.pluck(this.r.args(query.q))
     // }
     if(typeof query.q === 'string'){
+      if(query.aggregation){
+        _return_obj[query.q] = this.result_with_aggregation(this.build_query_fields(r_query, query), query.aggregation)
+      }
+      else{
+        _return_obj[query.q] = this.build_query_fields(r_query, query)
+      }
 
-      _return_obj[query.q] = this.build_query_fields(r_query, query)
     }
     else{
       // _return_obj['docs'] = r_query.pluck(this.r.args(query.q))
+      if(query.aggregation){
+        _return_obj = this.result_with_aggregation(this.build_query_fields(r_query, query), query.aggregation)
+      }
+      else{
       _return_obj = this.build_query_fields(r_query, query)
+      }
     }
 
 
+    if(query.aggregation){
 
+    }
 
 
     return _return_obj
