@@ -90,7 +90,8 @@ module.exports = new Class({
                       from: from,
                       type: (req.params && req.params.path) ? req.params.path : app.options.type,
                       id: req.id,
-                      transformation: (req.query.transformation) ? true : false
+                      transformation: (req.query.transformation) ? req.query.transformation : undefined,
+                      aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
                       // prop: pluralize(index)
                     }
                   }
@@ -146,7 +147,8 @@ module.exports = new Class({
                     from: from,
                     type: (req.params && req.params.path) ? req.params.path : app.options.type,
                     id: req.id,
-                    transformation: (req.query.transformation) ? true : false
+                    transformation: (req.query.transformation) ? req.query.transformation : undefined,
+                    aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
                     // prop: pluralize(index)
                   }
                 }
@@ -242,7 +244,8 @@ module.exports = new Class({
                     type: (req.params && req.params.path) ? req.params.path : app.options.type,
                     id: req.id,
                     Range: range,
-                    transformation: (req.query.transformation) ? true : false
+                    transformation: (req.query.transformation) ? req.query.transformation : undefined,
+                    aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
                     // prop: pluralize(index)
                   }
                 }
@@ -354,36 +357,36 @@ module.exports = new Class({
 
       debug_internals('query_with_aggregation %o', aggregation, _query_aggregation, _query_aggregation_value)
 
+      if(_query_aggregation_value)
+        query = query
+        .map(
+          function (doc) {
+            return eval( "doc"+_query_aggregation_value );
+          }.bind(this)
+        )
+
       switch(_query_aggregation){
         case 'count':
           query = query.count()
           break;
 
-        case 'sum':
-          if(_query_aggregation_value){
-            query = query
-            .values()
-
-
-
-
-          }
-          else{
-            query = query.sum()
-          }
+        case 'min':
+          query = query.min()
           break;
 
-        // case 'limit':
-        //   query = query.limit(_query_aggregation_value[0] * 1)
-        //   break;
-        //
-        // case 'skip':
-        //   query = query.skip(_query_aggregation_value[0] * 1)
-        //   break;
-        //
-        // case 'slice':
-        //   query = query.slice(_query_aggregation_value[0] * 1, _query_aggregation_value[1] * 1, _query_aggregation_value[2])
-        //   break;
+        case 'max':
+          query = query.max()
+          break;
+
+        case 'sum':
+          query = query.sum()
+          break;
+
+        case 'avg':
+          query = query.avg()
+          break;
+
+
       }
     }
 
@@ -559,6 +562,7 @@ module.exports = new Class({
     let type = extras.type
     let id = extras.id
     let transformation = extras.transformation
+    let aggregation = extras.aggregation
 
     delete extras.type
 
@@ -591,6 +595,9 @@ module.exports = new Class({
     extras[type] = (type === 'all') ? resp : (Array.isArray(resp)) ? resp[0]: resp
     if(transformation && type === 'all')
       extras[type] = extras[type][0]
+
+    // if(transformation && type === 'all')
+    //   extras[type] = extras[type][0]
 
     delete extras.prop
     delete extras.type
