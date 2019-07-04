@@ -232,7 +232,9 @@ module.exports = new Class({
     }
   },
   generic_response: function(payload){
-    let {err, result, resp, socket, input, format} = payload
+    let {err, result, resp, socket, input, opts} = payload
+    let format = (opts && opts.query) ? opts.query.format : undefined
+    
     debug_internals('generic_response', err, input, format)
 
     let status = (err && err.status) ? err.status : ((err) ? 500 : 200)
@@ -536,7 +538,7 @@ module.exports = new Class({
   * middleware callback (injected on initialize)
   **/
   __process_pipeline: function(){
-    debug_internals('__process_pipeline', arguments)
+    // debug_internals('__process_pipeline', arguments)
     let {req, resp, socket, next, opts} = this._arguments(arguments)
 
     let id = (socket) ? socket.id : undefined
@@ -748,7 +750,7 @@ module.exports = new Class({
   **/
   __process_session: function(){
     let {req, resp, socket, next, opts} = this._arguments(arguments)
-    debug_internals('__process_session', arguments)
+    // debug_internals('__process_session', arguments)
 
     let session = (socket) ? socket.handshake.session : req.session
     // let id = (socket) ? socket.id : req.session.id
