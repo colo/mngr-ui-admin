@@ -373,8 +373,14 @@ module.exports = new Class({
                 if(next)
                   next(response, err, resp)
 
-                this.removeEvent(response, _get_resp[response])
-                delete _get_resp[response]
+                /**
+                * if it's registered (socket) keep the event so it gets fired on each response
+                **/
+                throw new Error('Move _get_resp to Class property, so we can erase it elsewhere, (ex: on socket disconenct)')
+                if(!query.register){
+                  this.removeEvent(response, _get_resp[response])
+                  delete _get_resp[response]
+                }
               }
             }.bind(this)
 
