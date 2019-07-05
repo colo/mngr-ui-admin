@@ -42,8 +42,10 @@ module.exports = new Class({
       once: [
         {
 					default: function(req, next, app){
-						debug_internals('default', req);
-            if(!req.query || !req.query.register){
+
+            if(!req.query || (!req.query.register && !req.query.unregister)){
+              debug_internals('default', req);
+
               // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
               // if(!Array.isArray(distinct_indexes))
               //   distinct_indexes = [distinct_indexes]
@@ -104,9 +106,9 @@ module.exports = new Class({
 
         {
 					register: function(req, next, app){
-						debug_internals('register', req);
 
-            if(req.query.register){
+            if(req.query.register || req.query.unregister){
+              debug_internals('register', req);
               // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
               // if(!Array.isArray(distinct_indexes))
               //   distinct_indexes = [distinct_indexes]
@@ -116,44 +118,55 @@ module.exports = new Class({
               let from = req.from || app.FROM
               from = (from === 'minute' || from === 'hour') ? 'historical' : from
 
-              let query = app.r
-                .db(app.options.db)
-                .table(from)
-
-              query = (req.params.prop && req.params.value)
-              ? query
-                .getAll(req.params.value , {index: pluralize(req.params.prop, 1)})
-              : query
-
-              if(req.query.register === 'changes')
-                query = query.changes({includeTypes: true, squash: 1})
-
-              if(req.query && req.query.transformation)
-                query = app.query_with_transformation(query, req.query.transformation)
-
-              query = (req.params.path)
-              ? query
-                .filter( app.r.row('metadata')('path').eq(req.params.path) )
-              : query
-
-              if(req.query.q && typeof req.query.q !== 'string')
-                query = this.build_query_fields(query, {q: [{new_val: req.query.q }, 'type']})
-
-              app.register(
-                query,
-                req,
-                {
-                  _extras: {
-                    from: from,
-                    type: (req.params && req.params.path) ? req.params.path : app.options.type,
-                    id: req.id,
-                    transformation: (req.query.transformation) ? req.query.transformation : undefined,
-                    aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
-                    // prop: pluralize(index)
-                  }
+              let query
+              let params = {
+                _extras: {
+                  from: from,
+                  type: (req.params && req.params.path) ? req.params.path : app.options.type,
+                  id: req.id,
+                  transformation: (req.query.transformation) ? req.query.transformation : undefined,
+                  aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+                  // prop: pluralize(index)
                 }
-              )
+              }
 
+              if(req.query.register){
+                query = app.r
+                  .db(app.options.db)
+                  .table(from)
+
+                query = (req.params.prop && req.params.value)
+                ? query
+                  .getAll(req.params.value , {index: pluralize(req.params.prop, 1)})
+                : query
+
+                if(req.query.register === 'changes')
+                  query = query.changes({includeTypes: true, squash: 1})
+
+                if(req.query && req.query.transformation)
+                  query = app.query_with_transformation(query, req.query.transformation)
+
+                query = (req.params.path)
+                ? query
+                  .filter( app.r.row('metadata')('path').eq(req.params.path) )
+                : query
+
+                if(req.query.q && typeof req.query.q !== 'string')
+                  query = this.build_query_fields(query, {q: [{new_val: req.query.q }, 'type']})
+
+                app.register(
+                  query,
+                  req,
+                  params
+                )
+              }
+              else{
+
+                app.unregister(
+                  req,
+                  params
+                )
+              }
 
             }//req.query.register === true
 					}
@@ -614,16 +627,57 @@ module.exports = new Class({
 
 
   },
+  unregister: function(req, params){
+    debug_internals('UNregister %O', req)
+    let {id} = req
+    delete req.id
+
+    /**
+    * swap unregister => register so you get the same uuid
+    */
+    req.query.register = req.query.unregister
+    delete req.query.unregister
+
+    let uuid = uuidv5(JSON.stringify(req), this.ID)
+
+    if(this.registered_ids[uuid] && this.registered_ids[uuid].contains(id))
+      this.registered_ids[uuid] = this.registered_ids[uuid].erase(id)
+
+    if(this.registered_ids[uuid].length === 0){
+      delete this.registered_ids[uuid]
+      // this.close_feeds[uuid] = true
+      this.feeds[uuid].close(function (err) {
+        // this.close_feeds[uuid] = true
+        delete this.feeds[uuid]
+        delete this.changes_buffer[uuid]
+        delete this.changes_buffer_expire[uuid]
+
+        if (err){
+          debug_internals('err closing cursor onSuspend', err)
+        }
+      }.bind(this))
+    }
+
+    debug_internals('UNregister uuid %s', uuid)
+  },
   register: function(query, req, params){
     debug_internals('register %o %O', query, req)
     let {id} = req
     delete req.id
 
+    /**
+    * delete and re add to ensure "register" es the last property on query (to match unregister uuid)
+    **/
+    let register = req.query.register
+    delete req.query.register
+    req.query.register = register
+
+
     let uuid = uuidv5(JSON.stringify(req), this.ID)
 
     debug_internals('register uuid %s', uuid)
 
-    if(!this.registered[uuid]) this.registered[uuid] = query
+    // if(!this.registered[uuid]) this.registered[uuid] = query
     if(!this.registered_ids[uuid]) this.registered_ids[uuid] = []
     this.registered_ids[uuid].combine([id])
 

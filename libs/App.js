@@ -146,6 +146,8 @@ module.exports = new Class({
             route.callbacks.unshift('__process_pipeline')
             route.callbacks.unshift('__process_request')
   					route.callbacks.unshift('__process_session')
+
+            route.callbacks.push('__post_process')
             // route.callbacks.push('test');
             //
   					// if(verb == 'get')//users can "read" info
@@ -203,7 +205,8 @@ module.exports = new Class({
   },
   register_response: function(socket_or_req, cb){
     // debug_internals('register_response', socket_or_req.id)
-    let id = (socket_or_req.id) ? socket_or_req.id : socket_or_req.session.id
+    let id = this.__get_id_socket_or_req(socket_or_req)
+
     let session = (socket_or_req.session) ? socket_or_req.session : socket_or_req.handshake.session
 
     session._resp = session._resp+1 || 0
@@ -234,7 +237,7 @@ module.exports = new Class({
   generic_response: function(payload){
     let {err, result, resp, socket, input, opts} = payload
     let format = (opts && opts.query) ? opts.query.format : undefined
-    
+
     debug_internals('generic_response', err, input, format)
 
     let status = (err && err.status) ? err.status : ((err) ? 500 : 200)
@@ -275,6 +278,7 @@ module.exports = new Class({
           }
         }
 
+
       }.bind(this))
     }
     else{
@@ -284,10 +288,9 @@ module.exports = new Class({
       else{
         socket.emit(input, result)
       }
+
+
     }
-
-
-
 
 
   },
@@ -367,7 +370,8 @@ module.exports = new Class({
 
                 debug_internals('_get_resp %O', next) //resp
 
-                next(response, err, resp)
+                if(next)
+                  next(response, err, resp)
 
                 this.removeEvent(response, _get_resp[response])
                 delete _get_resp[response]
@@ -441,7 +445,9 @@ module.exports = new Class({
           // })
 
         }
-        next(response, undefined, resp)
+
+        if(next)
+          next(response, undefined, resp)
       }
 
     }.bind(this))
@@ -741,10 +747,29 @@ module.exports = new Class({
       next()
   },
 
+  __post_process: function(){
+    let {req, resp, socket, next, opts} = this._arguments(arguments)
+    let id = this.__get_id_socket_or_req((req) ? req : socket)
+
+    debug_internals('__post_process', id)
+
+    //
+    //
+    // if(process.env.NODE_ENV === 'production' && req && req.query){
+    //   delete req.query.register
+    //   debug_internals('__process_request cleaning req.query...', req.query)
+    // }
+
+    if(next)
+      next()
+  },
   /**
   * @start - session
   **/
-
+  __get_id_socket_or_req: function(socket_or_req){
+    // debug_internals('register_response', socket_or_req.id)
+    return (socket_or_req.id) ? socket_or_req.id : socket_or_req.session.id
+  },
   /**
   * middleware callback (injected on initialize)
   **/
