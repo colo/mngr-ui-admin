@@ -627,38 +627,74 @@ module.exports = new Class({
 
 
   },
+  __clean_registered_id: function(uuid, id, all_matching){
+    debug_internals('__clean_registered_id uuid %s', uuid, id,all_matching)
+
+    if(this.registered_ids[uuid]){
+      if(all_matching){
+
+        let _registered_ids = Array.clone(this.registered_ids[uuid])
+
+        Array.each(_registered_ids, function(reg_id, index){
+          debug_internals('__clean_registered_id ', reg_id, index)
+
+          if(reg_id.indexOf(id) === 0)
+            this.registered_ids[uuid].splice(index, 1)
+
+        }.bind(this))
+
+
+        this.registered_ids[uuid] = this.registered_ids[uuid].clean()
+      }
+      else{
+        this.registered_ids[uuid] = this.registered_ids[uuid].erase(id)
+      }
+
+      if(this.registered_ids[uuid].length === 0){
+        delete this.registered_ids[uuid]
+        // this.close_feeds[uuid] = true
+        this.feeds[uuid].close(function (err) {
+          // this.close_feeds[uuid] = true
+          delete this.feeds[uuid]
+          delete this.changes_buffer[uuid]
+          delete this.changes_buffer_expire[uuid]
+
+          if (err){
+            debug_internals('err closing cursor onSuspend', err)
+          }
+        }.bind(this))
+      }
+    }
+
+
+
+    debug_internals('__clean_registered_id uuid %s', uuid, id, this.registered_ids )
+  },
   unregister: function(req, params){
     debug_internals('UNregister %O', req)
     let {id} = req
     delete req.id
 
-    /**
-    * swap unregister => register so you get the same uuid
-    */
-    req.query.register = req.query.unregister
-    delete req.query.unregister
-
-    let uuid = uuidv5(JSON.stringify(req), this.ID)
-
-    if(this.registered_ids[uuid] && this.registered_ids[uuid].contains(id))
-      this.registered_ids[uuid] = this.registered_ids[uuid].erase(id)
-
-    if(this.registered_ids[uuid].length === 0){
-      delete this.registered_ids[uuid]
-      // this.close_feeds[uuid] = true
-      this.feeds[uuid].close(function (err) {
-        // this.close_feeds[uuid] = true
-        delete this.feeds[uuid]
-        delete this.changes_buffer[uuid]
-        delete this.changes_buffer_expire[uuid]
-
-        if (err){
-          debug_internals('err closing cursor onSuspend', err)
-        }
+    if(req.query.unregister === true || req.query.unregister === '*'){
+      let _registered_ids= Object.clone(this.registered_ids)
+      Object.each(_registered_ids, function(ids, uuid){
+        this.__clean_registered_id(uuid, id, true)
+        // if(ids.contains(id)) this.registered_ids[uuid] = this.registered_ids[uuid].erase(id)
       }.bind(this))
     }
+    else{
+      /**
+      * swap unregister => register so you get the same uuid
+      */
+      req.query.register = req.query.unregister
+      delete req.query.unregister
 
-    debug_internals('UNregister uuid %s', uuid)
+      let uuid = uuidv5(JSON.stringify(req), this.ID)
+
+      this.__clean_registered_id(uuid, id)
+
+    }
+
   },
   register: function(query, req, params){
     debug_internals('register %o %O', query, req)

@@ -40,6 +40,7 @@ module.exports = new Class({
   session_store: undefined,
 
   __responses: {},
+  __response_events: {},
 
   options: {
     libs: path.join(process.cwd(), '/libs'),
@@ -146,8 +147,14 @@ module.exports = new Class({
             route.callbacks.unshift('__process_pipeline')
             route.callbacks.unshift('__process_request')
   					route.callbacks.unshift('__process_session')
+            // route.callbacks.unshift(function(req, res, next){
+            //   res.on("finish", function() {
+            //       debug_internals('FINISH')
+            //       this.__post_process(req, res, next)
+            //   }.bind(this));
+            // })
 
-            route.callbacks.push('__post_process')
+            route.callbacks.unshift('__post_process')
             // route.callbacks.push('test');
             //
   					// if(verb == 'get')//users can "read" info
@@ -203,24 +210,39 @@ module.exports = new Class({
 
 		this.log('mngr-ui-admin-app', 'info', 'mngr-ui-admin-app started');
   },
-  register_response: function(socket_or_req, cb){
+  register_response: function(socket_or_req, resp_id, cb){
+    if(typeof resp_id !== 'string')
+      resp_id = uuidv5(JSON.stringify(resp_id), this.ID)
+
     // debug_internals('register_response', socket_or_req.id)
     let id = this.__get_id_socket_or_req(socket_or_req)
 
     let session = (socket_or_req.session) ? socket_or_req.session : socket_or_req.handshake.session
 
-    session._resp = session._resp+1 || 0
-    let resp_id = id +'.'+session._resp
+    // session._resp = session._resp+1 || 0
+    // let resp_id = id +'.'+session._resp
+    if(!session.responses[resp_id]) session.responses[resp_id] = []
+
+    let _index = session.responses[resp_id].length
+
+    let new_resp_id = id +'.'+ resp_id +'.'+_index
+
+    session.responses[resp_id].push(new_resp_id)
 
     debug_internals('register_response', resp_id)
-    if(resp_id){
+    if(new_resp_id){
       let _chain = new Chain()
       _chain.chain(
-        cb,
-        function(){ delete this.__responses[resp_id] }.bind(this)
+        function(){
+          delete this.__responses[new_resp_id]
+          session.responses[resp_id] = session.responses[resp_id].erase(new_resp_id)
+          session.responses[resp_id] = session.responses[resp_id].clean()
+          debug_internals('deleting register_response', resp_id, new_resp_id, session.responses[resp_id], this.__responses)
+        }.bind(this),
+        cb
       )
-      this.__responses[resp_id] = _chain
-      return {id: resp_id, chain: _chain}
+      this.__responses[new_resp_id] = _chain
+      return {id: new_resp_id, chain: _chain}
     }
     else{
       throw new Error('Couldn\'t register response, no ID')
@@ -294,6 +316,34 @@ module.exports = new Class({
 
 
   },
+  add_response_event: function(resp_id, cb){
+    debug_internals('add_response_event', resp_id)
+    this.__response_events[resp_id] = cb
+    this.addEvent(resp_id, cb)
+  },
+  remove_response_event: function(resp_id){
+    debug_internals('remove_response_event', resp_id)
+    if(this.__response_events[resp_id] && typeof this.__response_events[resp_id] === 'function'){
+      this.removeEvent(resp_id, this.__response_events[resp_id])
+      delete this.__response_events[resp_id]
+    }
+  },
+  remove_matching_response_events: function(id){
+    debug_internals('remove_matching_response_events', id)
+
+    let __response_events = Object.clone(this.__response_events)
+    // RegExp.escape = function(string) {
+    //   return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+    // };
+    // let reg = new RegExp("^"+RegExp.escape(id), 'g')
+    // let reg = new RegExp(id.replace('/', '\/'), 'g')
+
+
+    Object.each(__response_events, function(cb, resp_id){
+      if(resp_id.indexOf(id) === 0)
+        delete this.__response_events[resp_id]
+    }.bind(this))
+  },
   get_from_input: function(payload){
     debug_internals('get_from_input', payload)
     let {response, from, next, req, input, params, key, range, query} = payload
@@ -323,8 +373,9 @@ module.exports = new Class({
         this.get_pipeline(req, function(pipe){
             debug_internals('__get get_pipeline', pipe)
 
-            let _get_resp = {}
-            _get_resp[response] = function(err, resp){
+            // let _get_resp = {}
+            // _get_resp[response] = function(err, resp){
+            let _get_resp = function(err, resp){
               debug_internals('_get_resp %s %o %s', err, response, params) //resp
 
               if(resp.id == response){
@@ -376,17 +427,27 @@ module.exports = new Class({
                 /**
                 * if it's registered (socket) keep the event so it gets fired on each response
                 **/
-                throw new Error('Move _get_resp to Class property, so we can erase it elsewhere, (ex: on socket disconenct)')
+                // throw new Error('Move _get_resp to Class property, so we can erase it elsewhere, (ex: on socket disconenct)')
                 if(!query.register){
-                  this.removeEvent(response, _get_resp[response])
-                  delete _get_resp[response]
+                  // this.removeEvent(response, _get_resp[response])
+                  // delete _get_resp[response]
+                  this.remove_response_event(response)
                 }
               }
             }.bind(this)
 
-            this.addEvent(response, _get_resp[response])
+            // debug_internals('get_from_input addEvent', response)
 
-            // debug_internals('inputs', pipe.inputs[0].options.id)
+            // this.addEvent(response, _get_resp[response])
+            if(query.unregister){
+              // this.removeEvent(response, _get_resp[response])
+              // delete _get_resp[response]
+              this.remove_response_event(response)
+            }
+            else{
+              this.add_response_event(response, _get_resp)
+            }
+
             // debug_internals('inputs', pipe.get_input_by_id('domains'))
             if(range){
               pipe.get_input_by_id(input).fireEvent('onRange', {
@@ -471,7 +532,9 @@ module.exports = new Class({
     // this.__process_session({socket, next: this.__process_pipeline.pass({next: this.__process_request})})
 
 		socket.on('disconnect', function () {
-      debug_internals('socket.io disconnect', socket.id, this.__pipeline, this.__pipeline_cfg)
+      this.remove_matching_response_events(socket.id)
+
+      debug_internals('socket.io disconnect', socket.id, this.__pipeline, this.__pipeline_cfg, this.__response_events)
 
       this.__get_session_id_by_socket(socket.id, function(err, sid){
         debug_internals('disconnect __get_session_by_socket', err, sid)
@@ -508,11 +571,21 @@ module.exports = new Class({
         // }
 
         this.__pipeline.fireEvent('onOnce', {
-          type: 'unregister',
+          query: {'unregister': true},
           id: socket.id,
-        })//fire only the 'host' input
+        })//unregister on all inputs
 
-
+        // this.get_from_input({
+        //   response: id,
+        //   // input: (params.prop) ? 'log' : 'logs',
+        //   input: 'all',
+        //   from: 'periodical',
+        //   params,
+        //   range,
+        //   query,
+        //   // next: (id, err, result) => this.response(id, err, result)
+        //
+        // })
       }
 
 
@@ -755,9 +828,29 @@ module.exports = new Class({
 
   __post_process: function(){
     let {req, resp, socket, next, opts} = this._arguments(arguments)
-    let id = this.__get_id_socket_or_req((req) ? req : socket)
 
-    debug_internals('__post_process', id)
+    if(resp){
+      resp.on("finish", function() {
+          debug_internals('FINISH')
+          let id = this.__get_id_socket_or_req((req) ? req : socket)
+
+          if(req){
+            this.remove_matching_response_events(id)
+
+            if(this.__pipeline){
+              debug_internals('TO UNREGISTER', id)
+
+              this.__pipeline.fireEvent('onOnce', {
+                query: {'unregister': true},
+                id: id,
+              })//unregister on all inputs
+
+            }
+          }
+          debug_internals('__post_process', id)
+      }.bind(this));
+    }
+
 
     //
     //
@@ -803,6 +896,8 @@ module.exports = new Class({
 
       session.sockets.include(socket.id)
     }
+
+    if(!session.responses) session.responses = {}
 
     // return session
     if(next)
