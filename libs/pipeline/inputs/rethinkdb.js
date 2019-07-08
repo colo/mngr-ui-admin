@@ -73,16 +73,21 @@ module.exports = new Class({
                 .filter( app.r.row('metadata')('path').eq(req.params.path) )
               : query
 
+              if (req.query && req.query.aggregation && !req.query.q) {
+                query =  this.result_with_aggregation(query, req.query.aggregation)
+              }
+              else{
+                query = query
+                  .group( app.r.row('metadata')('path') )
+                  .ungroup()
+                  .map(
+                    function (doc) {
+                        return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                    }
+                )
+              }
 
-              query
-                .group( app.r.row('metadata')('path') )
-                .ungroup()
-                .map(
-                  function (doc) {
-                      return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
-                  }
-              )
-              .run(app.conn, function(err, resp){
+              query.run(app.conn, function(err, resp){
                 debug_internals('run', err)//resp
                 app.process_default(
                   err,
@@ -151,8 +156,10 @@ module.exports = new Class({
                   .filter( app.r.row('metadata')('path').eq(req.params.path) )
                 : query
 
-                if(req.query.q && typeof req.query.q !== 'string')
+                if(req.query.q && typeof req.query.q !== 'string'){
+                  debug_internals('register query.q', req.query);
                   query = this.build_query_fields(query, {q: [{new_val: req.query.q }, 'type']})
+                }
 
                 app.register(
                   query,
@@ -238,15 +245,21 @@ module.exports = new Class({
             if(req.query && req.query.transformation)
               query = app.query_with_transformation(query, req.query.transformation)
 
-            query
-              .group(app.r.row('metadata')('path'))
-              .ungroup()
-              .map(
-                function (doc) {
-                    return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
-                }
-            )
-            .run(app.conn, function(err, resp){
+            if (req.query && req.query.aggregation && !req.query.q) {
+              query =  this.result_with_aggregation(query, req.query.aggregation)
+            }
+            else{
+              query = query
+                .group(app.r.row('metadata')('path'))
+                .ungroup()
+                .map(
+                  function (doc) {
+                      return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                  }
+              )
+            }
+
+            query.run(app.conn, function(err, resp){
               debug_internals('run', err) //resp
               app.process_default(
                 err,
@@ -368,7 +381,20 @@ module.exports = new Class({
         _query_aggregation_value = aggregation[_query_aggregation]
       }
 
-      debug_internals('query_with_aggregation %o', aggregation, _query_aggregation, _query_aggregation_value)
+      debug_internals('result_with_aggregation %o', aggregation, _query_aggregation, _query_aggregation_value)
+
+      /**
+      * for "contains"
+      * ex:
+      * "aggregation":{
+    	*	"contains": ["('data')('status')", 500]
+    	* }
+      **/
+      let _query_aggregation_param
+      if(Array.isArray(_query_aggregation_value)){
+        _query_aggregation_param = _query_aggregation_value[1]
+        _query_aggregation_value = _query_aggregation_value[0]
+      }
 
       if(_query_aggregation_value)
         query = query
@@ -399,7 +425,13 @@ module.exports = new Class({
           query = query.avg()
           break;
 
+        case 'distinct':
+          query = query.distinct()
+          break;
 
+        case 'contains':
+          query = query.contains(_query_aggregation_param)
+          break;
       }
     }
 
@@ -483,8 +515,12 @@ module.exports = new Class({
       path: doc('group')
     }
 
-    // if(query.q)
-      // _return_obj = this.build_query_fields(_return_obj, query)
+    if(query && query.filter){
+      debug_internals('build_default_query_result FILTER', query.filter)
+      // r_query = r_query.filter(function(doc){ return doc('data')('status').eq(301) })
+      r_query = r_query.filter(function(doc){ return eval( "doc"+query.filter ) })
+
+    }
 
     // if(typeof query.q === 'string'){
     //   if(query.fields){
@@ -525,14 +561,14 @@ module.exports = new Class({
         _return_obj = this.result_with_aggregation(this.build_query_fields(r_query, query), query.aggregation)
       }
       else{
-      _return_obj = this.build_query_fields(r_query, query)
+        _return_obj = this.build_query_fields(r_query, query)
       }
     }
 
 
-    if(query.aggregation){
-
-    }
+    // if(query.aggregation){
+    //
+    // }
 
 
     return _return_obj
@@ -552,7 +588,7 @@ module.exports = new Class({
         query_with_fields[query.q] = query.fields
       }
 
-      debug_internals('build_default_query_result %o', query, query_with_fields)
+      debug_internals('build_query_fields %o', query, query_with_fields)
 
       r_query = (query.fields)
       ? r_query.withFields(query_with_fields)(query.q)

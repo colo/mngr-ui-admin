@@ -41,6 +41,7 @@ module.exports = new Class({
 
   __responses: {},
   __response_events: {},
+  __registered_intervals: {},
 
   options: {
     libs: path.join(process.cwd(), '/libs'),
@@ -209,6 +210,47 @@ module.exports = new Class({
     this.profile('hosts_init');//end profiling
 
 		this.log('mngr-ui-admin-app', 'info', 'mngr-ui-admin-app started');
+  },
+  register_interval: function(id, cb, interval, params) {
+
+    if(!this.__registered_intervals[id]) this.__registered_intervals[id] = {}
+    let uuid = uuidv5(JSON.stringify(params), this.ID)
+
+    this.__registered_intervals[id][uuid] = setInterval(cb, interval, params)
+
+    debug_internals('register_interval', id, interval, uuid)
+
+    return this.__registered_intervals[id][uuid]
+  },
+  unregister_interval: function(id, params) {
+    debug_internals('unregister_interval', id, params)
+    if(this.__registered_intervals[id]){
+      if(!params || params === null){//clear All intervals
+        if(Object.getLength(this.__registered_intervals[id]) > 0){
+          let __registered_intervals= this.__registered_intervals[id]
+          Object.each(__registered_intervals, function(interval, uuid){
+            clearInterval(interval)
+            delete this.__registered_intervals[id][uuid]
+          }.bind(this))
+          return true
+        }
+        else{
+          return false
+        }
+      }
+      else{
+        let uuid = uuidv5(JSON.stringify(params))
+        clearInterval(this.__registered_intervals[id][uuid])
+        return true
+      }
+
+    }
+    else{
+      return false
+    }
+
+
+
   },
   register_response: function(socket_or_req, resp_id, cb){
     if(typeof resp_id !== 'string')
@@ -427,7 +469,6 @@ module.exports = new Class({
                 /**
                 * if it's registered (socket) keep the event so it gets fired on each response
                 **/
-                // throw new Error('Move _get_resp to Class property, so we can erase it elsewhere, (ex: on socket disconenct)')
                 if(!query.register){
                   // this.removeEvent(response, _get_resp[response])
                   // delete _get_resp[response]
@@ -569,6 +610,7 @@ module.exports = new Class({
         //
         //   this.__pipeline.inputs[4].conn_pollers[0].clients['ui.rest'].ids = this.pipeline.ids
         // }
+        this.unregister_interval(socket.id)
 
         this.__pipeline.fireEvent('onOnce', {
           query: {'unregister': true},
@@ -816,6 +858,11 @@ module.exports = new Class({
     // debug_internals('__process_request', arguments)
     let {req, resp, socket, next, opts} = this._arguments(arguments)
 
+    /**
+    * don' allow register === periodical for "req", even on NODE_ENV !== 'production'
+    **/
+    if(req && req.query && req.query.register && req.query.register === 'periodical')
+      delete req.query.register
 
     if(process.env.NODE_ENV === 'production' && req && req.query){
       delete req.query.register
