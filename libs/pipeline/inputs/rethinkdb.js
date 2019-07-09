@@ -28,8 +28,8 @@ module.exports = new Class({
   close_feeds: {},
   changes_buffer: {},
   changes_buffer_expire: {},
-  registered_periodicals: [],
-  
+  periodicals: {},
+
   FROM: 'periodical',
   RANGES: {
     'periodical': 10000,
@@ -45,7 +45,7 @@ module.exports = new Class({
 					default: function(req, next, app){
 
             if(!req.query || (!req.query.register && !req.query.unregister)){
-              debug_internals('default', req);
+              debug_internals('default %o %o', req, req.params.value);
 
               // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
               // if(!Array.isArray(distinct_indexes))
@@ -60,11 +60,21 @@ module.exports = new Class({
                 .db(app.options.db)
                 .table(from)
 
-              query = (req.params.prop && req.params.value)
-              ? query
-                .getAll(req.params.value , {index: pluralize(req.params.prop, 1)})
-              : query
+              // query = (req.params.prop && req.params.value)
+              // ? query
+              //   .getAll(app.r.args(req.params.value) , {index: pluralize(req.params.prop, 1)})
+              // : query
+              if(req.params.prop && req.params.value){
+                if(!Array.isArray(req.params.value))
+                  try{
+                    req.params.value = JSON.parse(req.params.value)
+                  }
+                  catch(e){
+                    req.params.value = [req.params.value]
+                  }
 
+                query = query.getAll(app.r.args(req.params.value) , {index: pluralize(req.params.prop, 1)})
+              }
 
               if(req.query && req.query.transformation)
                 query = app.query_with_transformation(query, req.query.transformation)
@@ -115,6 +125,8 @@ module.exports = new Class({
 
             if(req.query.register || req.query.unregister){
               debug_internals('register', req);
+              req.params = req.params || {}
+
               // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
               // if(!Array.isArray(distinct_indexes))
               //   distinct_indexes = [distinct_indexes]
@@ -141,11 +153,25 @@ module.exports = new Class({
                   .db(app.options.db)
                   .table(from)
 
-                query = (req.params.prop && req.params.value)
-                ? query
-                  .getAll(req.params.value , {index: pluralize(req.params.prop, 1)})
-                : query
+                // query = (req.params.prop && req.params.value)
+                // ? query
+                //   .getAll(req.params.value , {index: pluralize(req.params.prop, 1)})
+                // : query
+                if(req.params.prop && req.params.value){
+                  if(!Array.isArray(req.params.value))
+                    try{
+                      req.params.value = JSON.parse(req.params.value)
+                    }
+                    catch(e){
+                      req.params.value = [req.params.value]
+                    }
 
+                  query = query.getAll(app.r.args(req.params.value) , {index: pluralize(req.params.prop, 1)})
+                }
+
+                /**
+                * changes (feed)
+                **/
                 if(req.query.register === 'changes')
                   query = query.changes({includeTypes: true, squash: 1})
 
@@ -157,10 +183,32 @@ module.exports = new Class({
                   .filter( app.r.row('metadata')('path').eq(req.params.path) )
                 : query
 
-                if(req.query.q && typeof req.query.q !== 'string'){
+                /**
+                * changes (feed)
+                **/
+                if(req.query.register === 'changes' && req.query.q && typeof req.query.q !== 'string'){
                   debug_internals('register query.q', req.query);
                   query = this.build_query_fields(query, {q: [{new_val: req.query.q }, 'type']})
                 }
+
+
+                /**
+                * periodical
+                **/
+                if (req.query.register === 'periodical' && req.query.aggregation && !req.query.q) {
+                  query =  this.result_with_aggregation(query, req.query.aggregation)
+                }
+                else if(req.query.register === 'periodical'){
+                  query = query
+                    .group( app.r.row('metadata')('path') )
+                    .ungroup()
+                    .map(
+                      function (doc) {
+                          return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                      }
+                  )
+                }
+
 
                 app.register(
                   query,
@@ -188,63 +236,79 @@ module.exports = new Class({
       periodical: [
         {
 					default: function(req, next, app){
+            debug_internals('periodical default %s', new Date());
 
             // if(!req.query || (!req.query.register && !req.query.unregister)){
-            if(arr.registered_periodicals.length > 0){
-              debug_internals('default', req);
+            if(Object.getLength(app.periodicals) > 0){
+              // debug_internals('periodical default %O', app.periodicals);
 
-              let from = req.from || app.FROM
-              from = (from === 'minute' || from === 'hour') ? 'historical' : from
-
-              let query = app.r
-                .db(app.options.db)
-                .table(from)
-
-              query = (req.params.prop && req.params.value)
-              ? query
-                .getAll(req.params.value , {index: pluralize(req.params.prop, 1)})
-              : query
-
-
-              if(req.query && req.query.transformation)
-                query = app.query_with_transformation(query, req.query.transformation)
-
-              query = (req.params.path)
-              ? query
-                .filter( app.r.row('metadata')('path').eq(req.params.path) )
-              : query
-
-              if (req.query && req.query.aggregation && !req.query.q) {
-                query =  this.result_with_aggregation(query, req.query.aggregation)
-              }
-              else{
-                query = query
-                  .group( app.r.row('metadata')('path') )
-                  .ungroup()
-                  .map(
-                    function (doc) {
-                        return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
-                    }
-                )
-              }
-
-              query.run(app.conn, function(err, resp){
-                debug_internals('run', err)//resp
-                app.process_default(
-                  err,
-                  resp,
-                  {
-                    _extras: {
-                      from: from,
-                      type: (req.params && req.params.path) ? req.params.path : app.options.type,
-                      id: req.id,
-                      transformation: (req.query.transformation) ? req.query.transformation : undefined,
-                      aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
-                      // prop: pluralize(index)
-                    }
-                  }
-                )
-              })
+              Object.each(app.periodicals, function(req, uuid){
+                Object.each(req, function(periodical, id){
+                  let {query, params} = periodical
+                  debug_internals('periodical default %s %O', id, periodical);
+                  // req.id = id
+                  query.run(app.conn, function(err, resp){
+                    debug_internals('periodical default run', err, resp)//resp
+                    app.process_default(
+                      err,
+                      resp,
+                      params
+                    )
+                  })
+                }.bind(this))
+              }.bind(this))
+              // let from = req.from || app.FROM
+              // from = (from === 'minute' || from === 'hour') ? 'historical' : from
+              //
+              // let query = app.r
+              //   .db(app.options.db)
+              //   .table(from)
+              //
+              // query = (req.params.prop && req.params.value)
+              // ? query
+              //   .getAll(req.params.value , {index: pluralize(req.params.prop, 1)})
+              // : query
+              //
+              //
+              // if(req.query && req.query.transformation)
+              //   query = app.query_with_transformation(query, req.query.transformation)
+              //
+              // query = (req.params.path)
+              // ? query
+              //   .filter( app.r.row('metadata')('path').eq(req.params.path) )
+              // : query
+              //
+              // if (req.query && req.query.aggregation && !req.query.q) {
+              //   query =  this.result_with_aggregation(query, req.query.aggregation)
+              // }
+              // else{
+              //   query = query
+              //     .group( app.r.row('metadata')('path') )
+              //     .ungroup()
+              //     .map(
+              //       function (doc) {
+              //           return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+              //       }
+              //   )
+              // }
+              //
+              // query.run(app.conn, function(err, resp){
+              //   debug_internals('run', err)//resp
+              //   app.process_default(
+              //     err,
+              //     resp,
+              //     {
+              //       _extras: {
+              //         from: from,
+              //         type: (req.params && req.params.path) ? req.params.path : app.options.type,
+              //         id: req.id,
+              //         transformation: (req.query.transformation) ? req.query.transformation : undefined,
+              //         aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+              //         // prop: pluralize(index)
+              //       }
+              //     }
+              //   )
+              // })
 
             } //req.query.register === false
 					}
@@ -706,9 +770,13 @@ module.exports = new Class({
         message: 'Not Found'
       }
 
-    extras[type] = (type === 'all') ? resp : (Array.isArray(resp)) ? resp[0]: resp
-    if(transformation && type === 'all')
-      extras[type] = extras[type][0]
+    if(Array.isArray(resp))
+      debug_internals('ARRAY RESP', resp)
+
+    extras[type] = (Array.isArray(resp)) ? resp[0] : resp
+    // extras[type] = (type === 'all') ? resp : (Array.isArray(resp)) ? resp[0]: resp
+    // if(transformation && type === 'all')
+    //   extras[type] = extras[type][0]
 
     // if(transformation && type === 'all')
     //   extras[type] = extras[type][0]
@@ -737,10 +805,12 @@ module.exports = new Class({
         let _registered_ids = Array.clone(this.registered_ids[uuid])
 
         Array.each(_registered_ids, function(reg_id, index){
-          debug_internals('__clean_registered_id ', reg_id, index)
+          debug_internals('PRE __clean_registered_id ', reg_id, index)
 
-          if(reg_id.indexOf(id) === 0)
+          if(reg_id.indexOf(id) === 0){
+            debug_internals('__clean_registered_id TRUE', reg_id, index)
             this.registered_ids[uuid].splice(index, 1)
+          }
 
         }.bind(this))
 
@@ -754,22 +824,26 @@ module.exports = new Class({
       if(this.registered_ids[uuid].length === 0){
         delete this.registered_ids[uuid]
         // this.close_feeds[uuid] = true
-        this.feeds[uuid].close(function (err) {
-          // this.close_feeds[uuid] = true
-          delete this.feeds[uuid]
-          delete this.changes_buffer[uuid]
-          delete this.changes_buffer_expire[uuid]
 
-          if (err){
-            debug_internals('err closing cursor onSuspend', err)
-          }
-        }.bind(this))
+        if(this.periodicals[uuid]) delete this.periodicals[uuid]
+
+        if(this.feeds[uuid])
+          this.feeds[uuid].close(function (err) {
+            // this.close_feeds[uuid] = true
+            delete this.feeds[uuid]
+            delete this.changes_buffer[uuid]
+            delete this.changes_buffer_expire[uuid]
+
+            if (err){
+              debug_internals('err closing cursor onSuspend', err)
+            }
+          }.bind(this))
       }
     }
 
 
 
-    debug_internals('__clean_registered_id uuid %s', uuid, id, this.registered_ids )
+    debug_internals('__clean_registered_id uuid', uuid, id, this.registered_ids, this.periodicals )
   },
   unregister: function(req, params){
     debug_internals('UNregister %O', req)
@@ -798,7 +872,7 @@ module.exports = new Class({
 
   },
   register: function(query, req, params){
-    debug_internals('register %o %O', query, req)
+    debug_internals('register %o %O', query, req, params)
     let {id} = req
     delete req.id
 
@@ -821,8 +895,12 @@ module.exports = new Class({
 
     // if(!this.registered[host][prop]) this.registered[host][prop] = []
     // this.registered[host][prop].push(id)
-
-    if(!this.feeds[uuid]){
+    if(req.query.register === 'periodical'){
+      if(!this.periodicals[uuid]) this.periodicals[uuid] = {}
+      this.periodicals[uuid][id] = {query, params}
+      // this.periodicals[uuid].push({query, params})
+    }
+    else if(req.query.register === 'changes' && !this.feeds[uuid]){
       debug_internals('registered %o %o', this.registered, this.registered_ids, req.query.q)
 
       // this.addEvent('onSuspend', this.__close_changes.pass(uuid, this))

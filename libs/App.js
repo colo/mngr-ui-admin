@@ -1007,7 +1007,7 @@ module.exports = new Class({
         this.session_store.all(function(err, sessions){
           if(err) cb(err, sessions)
 
-          debug_internals('__get_session_id_by_socket this.session_store.all', sessions)
+          debug_internals('__get_session_id_by_socket this.session_store.all', sessions.length)
 
           let found = false
           Object.each(sessions, function(session, sid){
