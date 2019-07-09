@@ -28,7 +28,8 @@ module.exports = new Class({
   close_feeds: {},
   changes_buffer: {},
   changes_buffer_expire: {},
-
+  registered_periodicals: [],
+  
   FROM: 'periodical',
   RANGES: {
     'periodical': 10000,
@@ -185,6 +186,69 @@ module.exports = new Class({
       * periodical data always comes from 'periodical' table
       **/
       periodical: [
+        {
+					default: function(req, next, app){
+
+            // if(!req.query || (!req.query.register && !req.query.unregister)){
+            if(arr.registered_periodicals.length > 0){
+              debug_internals('default', req);
+
+              let from = req.from || app.FROM
+              from = (from === 'minute' || from === 'hour') ? 'historical' : from
+
+              let query = app.r
+                .db(app.options.db)
+                .table(from)
+
+              query = (req.params.prop && req.params.value)
+              ? query
+                .getAll(req.params.value , {index: pluralize(req.params.prop, 1)})
+              : query
+
+
+              if(req.query && req.query.transformation)
+                query = app.query_with_transformation(query, req.query.transformation)
+
+              query = (req.params.path)
+              ? query
+                .filter( app.r.row('metadata')('path').eq(req.params.path) )
+              : query
+
+              if (req.query && req.query.aggregation && !req.query.q) {
+                query =  this.result_with_aggregation(query, req.query.aggregation)
+              }
+              else{
+                query = query
+                  .group( app.r.row('metadata')('path') )
+                  .ungroup()
+                  .map(
+                    function (doc) {
+                        return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                    }
+                )
+              }
+
+              query.run(app.conn, function(err, resp){
+                debug_internals('run', err)//resp
+                app.process_default(
+                  err,
+                  resp,
+                  {
+                    _extras: {
+                      from: from,
+                      type: (req.params && req.params.path) ? req.params.path : app.options.type,
+                      id: req.id,
+                      transformation: (req.query.transformation) ? req.query.transformation : undefined,
+                      aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+                      // prop: pluralize(index)
+                    }
+                  }
+                )
+              })
+
+            } //req.query.register === false
+					}
+				},
       ],
 
       range: [
@@ -469,6 +533,7 @@ module.exports = new Class({
     let self = this
     return {
       path: doc('group'),
+      count: doc('reduction').count(),
       hosts: doc('reduction').filter(function (doc) {
         return doc('metadata').hasFields('host');
       }).map(function(doc) {

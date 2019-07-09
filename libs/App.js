@@ -360,8 +360,10 @@ module.exports = new Class({
   },
   add_response_event: function(resp_id, cb){
     debug_internals('add_response_event', resp_id)
-    this.__response_events[resp_id] = cb
-    this.addEvent(resp_id, cb)
+    if(!this.__response_events[resp_id]){
+      this.__response_events[resp_id] = cb
+      this.addEvent(resp_id, cb)
+    }
   },
   remove_response_event: function(resp_id){
     debug_internals('remove_response_event', resp_id)
@@ -404,13 +406,14 @@ module.exports = new Class({
     debug_internals('__get cache key %s %s', cache_key, input.toUpperCase(), this[input.toUpperCase()+'_TTL'])
 
     this.cache.get(cache_key, function(err, result){
-      debug_internals('__get cache ERR %o %d %s',  (err) ? true : false, (err) ? err.status : 200, (err) ? new Date(err.expired) : '')
+      // debug_internals('__get cache ERR %o %d %s',  (err) ? true : false, (err) ? err.status : 200, (err) ? new Date(err.expired) : '')
 
       if(
         !result
         || range !== undefined
         || (query && query.transformation)
         || (query && query.aggregation)
+        || (query && query.filter)
       ){//even on result ranges search are not used from cache
         this.get_pipeline(req, function(pipe){
             debug_internals('__get get_pipeline', pipe)
@@ -424,7 +427,7 @@ module.exports = new Class({
 
                 if(
                   !range
-                  && (!query || (!query.transformation && !query.aggregation))
+                  && (!query || (!query.transformation && !query.aggregation && !query.filter))
                 ){//don't cache ranges searchs
                   let cache_resp = Object.clone(resp)
 
@@ -516,7 +519,7 @@ module.exports = new Class({
         // this.response(response, {from: from, input: 'domains', domains: result})
         debug_internals('from cache %o', params, result)
         let resp = {id: response, from, input}
-        if(params && Object.every(params, function(value, key){ return value === undefined || key === 'path' }) || params.value){
+        if(params && (Object.every(params, function(value, key){ return value === undefined || key === 'path' }) || params.value)){
           resp[input] = result
         }
         else{
@@ -528,7 +531,7 @@ module.exports = new Class({
 
           Array.each(_arr_resp, function(data, index){
             Object.each(data, function(value, key){
-              debug_internals('_get_resp delete key %s %s', key, params.prop)
+              debug_internals('_get_resp delete key %s %s', key, params)
               if(params && key !== params.prop)
                 delete data[key]
             })
