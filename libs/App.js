@@ -295,6 +295,7 @@ module.exports = new Class({
     // let id = (socket_or_req.id) ? socket_or_req.id : socket_or_req.session.id
     if(this.__responses[id]){
       let _chain = this.__responses[id]
+      debug_internals('response', id, _chain)
       while (_chain.callChain(err, resp) !== false) {}
     }
   },
@@ -302,7 +303,9 @@ module.exports = new Class({
     let {err, result, resp, socket, input, opts} = payload
     let format = (opts && opts.query) ? opts.query.format : undefined
 
-    debug_internals('generic_response', err, input, format)
+    result.opts = opts
+
+    // debug_internals('generic_response', err, result, socket)
 
     let status = (err && err.status) ? err.status : ((err) ? 500 : 200)
     if(err)
@@ -350,6 +353,7 @@ module.exports = new Class({
         resp.status(status).json(result)
       }
       else{
+        debug_internals('generic_response', err, result)
         socket.emit(input, result)
       }
 
@@ -390,7 +394,10 @@ module.exports = new Class({
   },
   get_from_input: function(payload){
     debug_internals('get_from_input', payload)
-    let {response, from, next, req, input, params, key, range, query} = payload
+    // let {response, from, next, req, input, params, key, range, query} = payload
+    let {response, from, next, req, input, key, range, opts} = payload
+    let query = opts.query || {}
+    let params = opts.params || {}
     from = from || 'periodical'
     let cache_key = (key) ? input+'.'+from+'.'+key : input+'.'+from
     cache_key = (params && params.prop && params.value) ? cache_key+'.'+params.prop+'.'+params.value : cache_key
@@ -466,6 +473,8 @@ module.exports = new Class({
 
                 debug_internals('_get_resp %O', next) //resp
 
+                // resp.opts = opts
+
                 if(next)
                   next(response, err, resp)
 
@@ -516,6 +525,7 @@ module.exports = new Class({
           }.bind(this))
       }
       else{
+        // result.opts = opts
         // this.response(response, {from: from, input: 'domains', domains: result})
         debug_internals('from cache %o', params, result)
         let resp = {id: response, from, input}

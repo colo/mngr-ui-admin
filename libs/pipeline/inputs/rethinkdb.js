@@ -127,11 +127,32 @@ module.exports = new Class({
               debug_internals('register', req);
               req.params = req.params || {}
 
-              // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
-              // if(!Array.isArray(distinct_indexes))
-              //   distinct_indexes = [distinct_indexes]
-              //
-              // debug_internals('property', distinct_indexes);
+              /**
+              let start, end
+              end = (req.opt && req.opt.range) ? req.opt.range.end : Date.now()
+              start  = (req.opt && req.opt.range) ? req.opt.range.start : end - 10000 //10 secs
+
+              let range = 'posix '+start+'-'+end+'/*'
+
+              let index = "timestamp"
+
+              let query = app.r
+                .db(app.options.db)
+                .table(from)
+
+              index = (req.params.prop && req.params.value)
+              ? pluralize(req.params.prop, 1)+'.timestamp'
+              : index
+
+              start = (req.params.prop && req.params.value)
+              ? [req.params.value, start]
+              : start
+
+              end = (req.params.prop && req.params.value)
+              ? [req.params.value, end]
+              : end
+              **/
+
 
               let from = req.from || app.FROM
               from = (from === 'minute' || from === 'hour') ? 'historical' : from
@@ -736,7 +757,7 @@ module.exports = new Class({
   process_default: function(err, resp, params){
     debug_internals('process_default', err, params)
 
-    let extras = params._extras
+    let extras = Object.clone(params._extras)
     let type = extras.type
     let id = extras.id
     let transformation = extras.transformation
