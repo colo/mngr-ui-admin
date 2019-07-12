@@ -43,7 +43,7 @@ module.exports = new Class({
       once: [
         {
 					default: function(req, next, app){
-
+            req = (req) ? Object.clone(req) : {}
             if(!req.query || (!req.query.register && !req.query.unregister)){
               debug_internals('default %o %o', req, req.params.value);
 
@@ -122,37 +122,11 @@ module.exports = new Class({
 
         {
 					register: function(req, next, app){
+            req = (req) ? Object.clone(req) : {}
 
             if(req.query.register || req.query.unregister){
               debug_internals('register', req);
               req.params = req.params || {}
-
-              /**
-              let start, end
-              end = (req.opt && req.opt.range) ? req.opt.range.end : Date.now()
-              start  = (req.opt && req.opt.range) ? req.opt.range.start : end - 10000 //10 secs
-
-              let range = 'posix '+start+'-'+end+'/*'
-
-              let index = "timestamp"
-
-              let query = app.r
-                .db(app.options.db)
-                .table(from)
-
-              index = (req.params.prop && req.params.value)
-              ? pluralize(req.params.prop, 1)+'.timestamp'
-              : index
-
-              start = (req.params.prop && req.params.value)
-              ? [req.params.value, start]
-              : start
-
-              end = (req.params.prop && req.params.value)
-              ? [req.params.value, end]
-              : end
-              **/
-
 
               let from = req.from || app.FROM
               from = (from === 'minute' || from === 'hour') ? 'historical' : from
@@ -257,6 +231,7 @@ module.exports = new Class({
       periodical: [
         {
 					default: function(req, next, app){
+            req = (req) ? Object.clone(req) : {}
             debug_internals('periodical default %s', new Date());
 
             // if(!req.query || (!req.query.register && !req.query.unregister)){
@@ -339,97 +314,232 @@ module.exports = new Class({
       range: [
         {
 					default: function(req, next, app){
+            req = (req) ? Object.clone(req) : {}
+
 						debug_internals('default range', req);
+            if(!req.query || (!req.query.register && !req.query.unregister)){
 
-            let start, end
-            end = (req.opt && req.opt.range) ? req.opt.range.end : Date.now()
-            start  = (req.opt && req.opt.range) ? req.opt.range.start : end - 10000 //10 secs
+              let start, end
+              end = (req.opt && req.opt.range) ? req.opt.range.end : Date.now()
+              start  = (req.opt && req.opt.range) ? req.opt.range.start : end - 10000 //10 secs
 
-            let range = 'posix '+start+'-'+end+'/*'
+              let range = 'posix '+start+'-'+end+'/*'
 
-            // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
-            // if(!Array.isArray(distinct_indexes))
-            //   distinct_indexes = [distinct_indexes]
-            //
-            // debug_internals('property', distinct_indexes);
 
-            let from = req.from || app.FROM
-            from = (from === 'minute' || from === 'hour') ? 'historical' : from
+              let from = req.from || app.FROM
+              from = (from === 'minute' || from === 'hour') ? 'historical' : from
 
-            let index = "timestamp"
+              let index = "timestamp"
 
-            let query = app.r
-              .db(app.options.db)
-              .table(from)
+              let query = app.r
+                .db(app.options.db)
+                .table(from)
 
-            index = (req.params.prop && req.params.value)
-            ? pluralize(req.params.prop, 1)+'.timestamp'
-            : index
+              index = (req.params.prop && req.params.value)
+              ? pluralize(req.params.prop, 1)+'.timestamp'
+              : index
 
-            start = (req.params.prop && req.params.value)
-            ? [req.params.value, start]
-            : start
+              start = (req.params.prop && req.params.value)
+              ? [req.params.value, start]
+              : start
 
-            end = (req.params.prop && req.params.value)
-            ? [req.params.value, end]
-            : end
+              end = (req.params.prop && req.params.value)
+              ? [req.params.value, end]
+              : end
 
-            query = (req.params.path)
-            ? query
-              .between(
-              	start,
-              	end,
-              	{index: index}
-              )
-              .filter( app.r.row('metadata')('path').eq(req.params.path) )
-            : query
-              .between(
-              	start,
-              	end,
-              	{index: index}
-              )
+              query = (req.params.path)
+              ? query
+                .between(
+                  start,
+                  end,
+                  {index: index}
+                )
+                .filter( app.r.row('metadata')('path').eq(req.params.path) )
+              : query
+                .between(
+                  start,
+                  end,
+                  {index: index}
+                )
 
 
 
-            if(req.query && req.query.transformation)
-              query = app.query_with_transformation(query, req.query.transformation)
+              if(req.query && req.query.transformation)
+                query = app.query_with_transformation(query, req.query.transformation)
 
-            if (req.query && req.query.aggregation && !req.query.q) {
-              query =  this.result_with_aggregation(query, req.query.aggregation)
-            }
-            else{
-              query = query
-                .group(app.r.row('metadata')('path'))
-                .ungroup()
-                .map(
-                  function (doc) {
-                      return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+              if (req.query && req.query.aggregation && !req.query.q) {
+                query =  this.result_with_aggregation(query, req.query.aggregation)
+              }
+              else{
+                query = query
+                  .group(app.r.row('metadata')('path'))
+                  .ungroup()
+                  .map(
+                    function (doc) {
+                        return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                    }
+                )
+              }
+
+              query.run(app.conn, function(err, resp){
+                debug_internals('run', err) //resp
+                app.process_default(
+                  err,
+                  resp,
+                  {
+                    _extras: {
+                      from: from,
+                      type: (req.params && req.params.path) ? req.params.path : app.options.type,
+                      id: req.id,
+                      Range: range,
+                      transformation: (req.query.transformation) ? req.query.transformation : undefined,
+                      aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+                      // prop: pluralize(index)
+                    }
                   }
-              )
+                )
+              })
+
             }
-
-            query.run(app.conn, function(err, resp){
-              debug_internals('run', err) //resp
-              app.process_default(
-                err,
-                resp,
-                {
-                  _extras: {
-                    from: from,
-                    type: (req.params && req.params.path) ? req.params.path : app.options.type,
-                    id: req.id,
-                    Range: range,
-                    transformation: (req.query.transformation) ? req.query.transformation : undefined,
-                    aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
-                    // prop: pluralize(index)
-                  }
-                }
-              )
-            })
-
 
 					}
 				},
+
+        {
+          register: function(req, next, app){
+            req = (req) ? Object.clone(req) : {}
+
+            if(req.query.register || req.query.unregister){
+              debug_internals('range register', req);
+              req.params = req.params || {}
+
+              let start, end
+              end = (req.opt && req.opt.range) ? req.opt.range.end : Date.now()
+              start  = (req.opt && req.opt.range) ? req.opt.range.start : end - 10000 //10 secs
+
+              let range = 'posix '+start+'-'+end+'/*'
+
+
+              let from = req.from || app.FROM
+              from = (from === 'minute' || from === 'hour') ? 'historical' : from
+
+              let index = "timestamp"
+
+
+              let query
+              // let params = {
+              //   _extras: {
+              //     from: from,
+              //     type: (req.params && req.params.path) ? req.params.path : app.options.type,
+              //     id: req.id,
+              //     transformation: (req.query.transformation) ? req.query.transformation : undefined,
+              //     aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+              //     // prop: pluralize(index)
+              //   }
+              // }
+              let params = {
+                _extras: {
+                  from: from,
+                  type: (req.params && req.params.path) ? req.params.path : app.options.type,
+                  id: req.id,
+                  Range: range,
+                  transformation: (req.query.transformation) ? req.query.transformation : undefined,
+                  aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+                  // prop: pluralize(index)
+                }
+              }
+
+              if(req.query.register){
+                query = app.r
+                  .db(app.options.db)
+                  .table(from)
+
+                index = (req.params.prop && req.params.value)
+                ? pluralize(req.params.prop, 1)+'.timestamp'
+                : index
+
+                start = (req.params.prop && req.params.value)
+                ? [req.params.value, start]
+                : start
+
+                end = (req.params.prop && req.params.value)
+                ? [req.params.value, end]
+                : end
+
+                query = (req.params.path)
+                ? query
+                  .between(
+                  	start,
+                  	end,
+                  	{index: index}
+                  )
+                  .filter( app.r.row('metadata')('path').eq(req.params.path) )
+                : query
+                  .between(
+                  	start,
+                  	end,
+                  	{index: index}
+                  )
+
+                /**
+                * changes (feed)
+                **/
+                if(req.query.register === 'changes')
+                  query = query.changes({includeTypes: true, squash: 1})
+
+                if(req.query && req.query.transformation)
+                  query = app.query_with_transformation(query, req.query.transformation)
+
+                query = (req.params.path)
+                ? query
+                  .filter( app.r.row('metadata')('path').eq(req.params.path) )
+                : query
+
+                /**
+                * changes (feed)
+                **/
+                if(req.query.register === 'changes' && req.query.q && typeof req.query.q !== 'string'){
+                  debug_internals('register query.q', req.query);
+                  query = this.build_query_fields(query, {q: [{new_val: req.query.q }, 'type']})
+                }
+
+
+                /**
+                * periodical
+                **/
+                if (req.query.register === 'periodical' && req.query.aggregation && !req.query.q) {
+                  query =  this.result_with_aggregation(query, req.query.aggregation)
+                }
+                else if(req.query.register === 'periodical'){
+                  query = query
+                    .group( app.r.row('metadata')('path') )
+                    .ungroup()
+                    .map(
+                      function (doc) {
+                          return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                      }
+                  )
+                }
+
+
+                app.register(
+                  query,
+                  req,
+                  params
+                )
+              }
+              else{
+
+                app.unregister(
+                  req,
+                  params
+                )
+              }
+
+            }//req.query.register === true
+          }
+        },
+
       ]
 
 		},
@@ -755,9 +865,10 @@ module.exports = new Class({
     return r_query
   },
   process_default: function(err, resp, params){
+    params = (params) ? Object.clone(params) : {}
     debug_internals('process_default', err, params)
 
-    let extras = Object.clone(params._extras)
+    let extras = params._extras
     let type = extras.type
     let id = extras.id
     let transformation = extras.transformation
@@ -893,6 +1004,7 @@ module.exports = new Class({
 
   },
   register: function(query, req, params){
+    params = (params) ? Object.clone(params) : {}
     debug_internals('register %o %O', query, req, params)
     let {id} = req
     delete req.id
