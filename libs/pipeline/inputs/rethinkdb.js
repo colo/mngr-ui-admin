@@ -871,10 +871,11 @@ module.exports = new Class({
     debug_internals('process_default', err, params)
 
     let metadata = params._extras
-    let type = metadata.type
+    metadata.timestamp = Date.now()
+    // let type = metadata.type
     let id = metadata.id
-    let transformation = metadata.transformation
-    let aggregation = metadata.aggregation
+    // let transformation = metadata.transformation
+    // let aggregation = metadata.aggregation
 
     delete metadata.type
     delete metadata.id
@@ -902,7 +903,7 @@ module.exports = new Class({
 
     // extras[type] = (Array.isArray(resp)) ? resp[0] : resp
     let data = (Array.isArray(resp)) ? resp[0] : resp
-    
+
     delete metadata.prop
     delete metadata.type
 
