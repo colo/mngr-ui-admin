@@ -870,31 +870,24 @@ module.exports = new Class({
     params = (params) ? Object.clone(params) : {}
     debug_internals('process_default', err, params)
 
-    let extras = params._extras
-    let type = extras.type
-    let id = extras.id
-    let transformation = extras.transformation
-    let aggregation = extras.aggregation
+    let metadata = params._extras
+    let type = metadata.type
+    let id = metadata.id
+    let transformation = metadata.transformation
+    let aggregation = metadata.aggregation
 
-    delete extras.type
+    delete metadata.type
+    delete metadata.id
 
     if(err){
       debug_internals('process_default err', err)
-
-			// if(params.uri != ''){
-			// 	this.fireEvent('on'+params.uri.charAt(0).toUpperCase() + params.uri.slice(1)+'Error', err);//capitalize first letter
-			// }
-			// else{
 				this.fireEvent('onGetError', err);
-			// }
-
-			// this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
 
 			this.fireEvent(
 				this[
 					'ON_'+this.options.requests.current.type.toUpperCase()+'_DOC_ERROR'
 				],
-				[err, extras]
+				[err, {id: id, metadata : metadata}]
 			);
     }
 
@@ -907,24 +900,19 @@ module.exports = new Class({
     if(Array.isArray(resp))
       debug_internals('ARRAY RESP', resp)
 
-    extras[type] = (Array.isArray(resp)) ? resp[0] : resp
-    // extras[type] = (type === 'all') ? resp : (Array.isArray(resp)) ? resp[0]: resp
-    // if(transformation && type === 'all')
-    //   extras[type] = extras[type][0]
-
-    // if(transformation && type === 'all')
-    //   extras[type] = extras[type][0]
-
-    delete extras.prop
-    delete extras.type
+    // extras[type] = (Array.isArray(resp)) ? resp[0] : resp
+    let data = (Array.isArray(resp)) ? resp[0] : resp
+    
+    delete metadata.prop
+    delete metadata.type
 
 
     if(err){
-      this.fireEvent(this.ON_DOC_ERROR, [err, extras]);
+      this.fireEvent(this.ON_DOC_ERROR, [err, {id: id, metadata : metadata}]);
     }
     else{
 
-      this.fireEvent(this.ON_DOC, [extras, Object.merge({input_type: this, app: null})]);
+      this.fireEvent(this.ON_DOC, [{id: id,data: data, metadata : metadata}, Object.merge({input_type: this, app: null})]);
     }
 
 

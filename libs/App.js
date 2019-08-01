@@ -303,7 +303,8 @@ module.exports = new Class({
     let {err, result, resp, socket, input, opts} = payload
     let format = (opts && opts.query) ? opts.query.format : undefined
 
-    result.opts = opts
+    // result.opts = opts
+    result.metadata.opts = opts
 
     // debug_internals('generic_response', err, result, socket)
 
@@ -438,7 +439,10 @@ module.exports = new Class({
                 ){//don't cache ranges searchs
                   let cache_resp = Object.clone(resp)
 
-                  this.cache.set(cache_key, cache_resp[input], this[input.toUpperCase()+'_TTL'])
+                  // this.cache.set(cache_key, cache_resp[input], this[input.toUpperCase()+'_TTL'])
+                  this.cache.set(cache_key, cache_resp, this[input.toUpperCase()+'_TTL'])
+
+                  debug_internals('CACHE SET %s %o', cache_key) //resp
                 }
 
                 // if(!err && Object.every(params, function(value, key){ return value === undefined || key === 'path' })){//only cache full responses
@@ -446,7 +450,7 @@ module.exports = new Class({
                 //   this.cache.set(cache_key, resp[input], this[input.toUpperCase()+'_TTL'])
                 // }
                 if(params && params.prop && !params.value){
-                  let _arr_resp = resp[input]
+                  let _arr_resp = resp['data']
                   if(!Array.isArray(_arr_resp))
                     _arr_resp = [_arr_resp]
 
@@ -460,16 +464,16 @@ module.exports = new Class({
                   })
 
                   if(!Array.isArray(resp[input])){
-                    resp[input] = _arr_resp[0]
+                    resp['data'] = _arr_resp[0]
                   }
                   else{
-                    resp[input] = _arr_resp
+                    resp['data'] = _arr_resp
                   }
 
                 }
                 // send_resp[req_id](resp)
-                resp.from = from
-                resp.input = input
+                resp.metadata.from = from
+                resp.metadata.input = input
 
                 debug_internals('_get_resp %O', next) //resp
 
@@ -528,9 +532,10 @@ module.exports = new Class({
         // result.opts = opts
         // this.response(response, {from: from, input: 'domains', domains: result})
         debug_internals('from cache %o', params, result)
-        let resp = {id: response, from, input}
+        let resp = {id: response, metadata: {from, input, cache: {key: cache_key, ttl: this[input.toUpperCase()+'_TTL']}}}
         if(params && (Object.every(params, function(value, key){ return value === undefined || key === 'path' }) || params.value)){
-          resp[input] = result
+          // resp['data'] = result
+          resp = Object.merge(resp, result)
         }
         else{
 
@@ -547,11 +552,11 @@ module.exports = new Class({
             })
           })
 
-          if(!Array.isArray(resp[input])){
-            resp[input] = _arr_resp[0]
+          if(!Array.isArray(resp['data'])){
+            resp['data'] = _arr_resp[0]
           }
           else{
-            resp[input] = _arr_resp
+            resp['data'] = _arr_resp
           }
 
           // Object.each(params, function(value, key){//key may be anything, value is usually what we search for
