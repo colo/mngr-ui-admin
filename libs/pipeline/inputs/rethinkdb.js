@@ -392,6 +392,7 @@ module.exports = new Class({
                       type: (req.params && req.params.path) ? req.params.path : app.options.type,
                       id: req.id,
                       Range: range,
+                      range: req.opt.range,
                       transformation: (req.query.transformation) ? req.query.transformation : undefined,
                       aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
                       // prop: pluralize(index)
@@ -443,6 +444,7 @@ module.exports = new Class({
                   type: (req.params && req.params.path) ? req.params.path : app.options.type,
                   id: req.id,
                   Range: range,
+                  range: req.opt.range,
                   transformation: (req.query.transformation) ? req.query.transformation : undefined,
                   aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
                   // prop: pluralize(index)
