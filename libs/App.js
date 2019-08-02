@@ -312,20 +312,45 @@ module.exports = new Class({
     if(err)
       result = Object.merge(err, result)
 
-    if(format && !err && (result[input].length > 0 || Object.getLength(result[input]) > 0)){
-      let stat = {}
-      stat[input] = (!Array.isArray(result[input])) ? [result[input]] : result[input]
-      this.__transform_data('stat', '', stat, this.ID, function(value){
-        debug_internals(input+': __transform_data stat %O', value.stat) //result
+    if(format && !err && (result['data'].length > 0 || Object.getLength(result['data']) > 0)){
 
-        result[input] = value.stat[input]
+      if(format === 'merged'){
+        if(Array.isArray(result['data']))
+          result['data'] = this.merge_data_array(result['data'])
 
-        if( format == 'tabular' && !err && value.stat[input] && (value.stat[input].length > 0 || Object.getLength(value.stat[input]) > 0)){
+        if(resp){
+          resp.status(status).json(result)
+        }
+        else{
+          socket.emit(input, result)
+        }
+      }
+      else{
+        let stat = {}
+        stat['data'] = (!Array.isArray(result['data'])) ? [result['data']] : result['data']
+        this.__transform_data('stat', '', stat, this.ID, function(value){
+          debug_internals(input+': __transform_data stat %O', value.stat) //result
 
-          this.__transform_data('tabular', input, value.stat[input], this.id, function(value){
-            debug_internals(input+': __transform_data tabular %O', value) //result
+          result['data'] = value.stat['data']
 
-            result[input] = value
+          if( format == 'tabular' && !err && value.stat['data'] && (value.stat['data'].length > 0 || Object.getLength(value.stat['data']) > 0)){
+
+            this.__transform_data('tabular', 'data', value.stat['data'], this.id, function(value){
+              debug_internals(input+': __transform_data tabular %O', value) //result
+
+              result['data'] = value
+
+              if(resp){
+                resp.status(status).json(result)
+              }
+              else{
+                socket.emit(input, result)
+              }
+
+            }.bind(this))
+
+          }
+          else{
 
             if(resp){
               resp.status(status).json(result)
@@ -333,23 +358,16 @@ module.exports = new Class({
             else{
               socket.emit(input, result)
             }
-
-          }.bind(this))
-
-        }
-        else{
-          if(resp){
-            resp.status(status).json(result)
           }
-          else{
-            socket.emit(input, result)
-          }
-        }
 
 
-      }.bind(this))
+        }.bind(this))
+      }
+
+
     }
     else{
+
       if(resp){
         resp.status(status).json(result)
       }
@@ -362,6 +380,55 @@ module.exports = new Class({
     }
 
 
+  },
+  merge_data_array: function(data){
+    debug('merge_data_array')
+    let newData = data.shift()
+
+    for(const i in data){
+      newData = this.deep_object_merge(newData, data[i])
+    }
+    debug('merge_data_array MERGED', newData)
+
+    return newData
+  },
+  deep_object_merge: function(obj1, obj2){
+    // debug('deep_object_merge %o %o', obj1, obj2)
+
+    let merged = (obj1) ?  Object.clone(obj1): {}
+
+    for(const key in obj2){
+      if(!obj1[key]){
+        obj1[key] = obj2[key]
+      }
+      else if(obj2[key] !== null && obj1[key] !== obj2[key]){
+        if(typeof obj2[key] === 'object' && obj2[key].constructor === Object && Object.keys(obj2[key]).length > 0){
+          merged[key] = this.deep_object_merge(merged[key], obj2[key])
+
+          // if(Object.keys(merged).length === 0)
+          //   delete merged[key]
+
+        }
+        else if(Array.isArray(merged[key]) && Array.isArray(obj2[key])){
+          merged[key].combine(obj2[key])
+        }
+        // else if( Object.keys(obj2[key]).length > 0 ){
+        else {
+          if(!Array.isArray(merged[key])){
+            let tmpVal = merged[key]
+            merged[key] = []
+          }
+
+          merged[key].include(obj2[key])
+        }
+
+      }
+
+
+    }
+
+
+    return merged
   },
   add_response_event: function(resp_id, cb){
     debug_internals('add_response_event', resp_id)
