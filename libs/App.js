@@ -315,8 +315,8 @@ module.exports = new Class({
     if(format && !err && (result['data'].length > 0 || Object.getLength(result['data']) > 0)){
 
       if(format === 'merged'){
-        if(Array.isArray(result['data']))
-          result['data'] = this.merge_data_array(result['data'])
+        // if(Array.isArray(result['data']))
+          result['data'] = this.merge_result_data(result['data'])
 
         if(resp){
           resp.status(status).json(result)
@@ -381,14 +381,30 @@ module.exports = new Class({
 
 
   },
-  merge_data_array: function(data){
-    debug('merge_data_array')
-    let newData = data.shift()
+  merge_result_data: function(data){
+    debug('merge_result_data')
+    let newData
+    if(Array.isArray(data)){
+      debug('merge_result_data TO MERGE ARRAY', data)
+      newData = data.shift()
 
-    for(const i in data){
-      newData = this.deep_object_merge(newData, data[i])
+      for(const i in data){
+        newData = this.deep_object_merge(newData, data[i])
+      }
     }
-    debug('merge_data_array MERGED', newData)
+    else if(typeof data === 'object' && data.constructor === Object && Object.keys(data).length > 0){
+      newData = {}
+      // debug('merge_result_data TO MERGE', data)
+      for(const i in data){
+        debug('merge_result_data TO MERGE', i, data[i])
+        newData[i] = this.merge_result_data(data[i])
+      }
+    }
+    else{
+      newData = data
+    }
+
+    debug('merge_result_data MERGED', newData)
 
     return newData
   },
