@@ -603,6 +603,11 @@ module.exports = new Class({
         _query_transform = transformation.split(':')[0]
         _query_transform_value = transformation.split(':').slice(1)
       }
+      else if(Array.isArray(transformation)){//allow chaining transformations
+        Array.each(transformation, function(transform, index){
+          query = this.query_with_transformation(query, transform)
+        }.bind(this))
+      }
       else{
         _query_transform = Object.keys(transformation)[0]
         _query_transform_value = transformation[_query_transform]
@@ -622,6 +627,29 @@ module.exports = new Class({
 
         case 'slice':
           query = query.slice(_query_transform_value[0] * 1, _query_transform_value[1] * 1, _query_transform_value[2])
+          break;
+
+        case 'orderBy':
+          // query = query.orderBy(eval(_query_transform_value))
+          let value = (_query_transform_value.index) ? _query_transform_value.index : _query_transform_value
+
+          if(value && value.indexOf('(') > -1){
+            value = value.replace('r.', '')
+            value = value.replace(')', '')
+            debug('orderBy ', value)
+            let order = value.substring(0, value.indexOf('('))
+            let index = value.substring(value.indexOf('(') + 1)
+            debug('orderBy ',order, index)
+
+            if(_query_transform_value.index)
+              _query_transform_value.index = this.r[order](index)
+            else
+              _query_transform_value = this.r[order](index)
+          }
+
+
+
+          query = query.orderBy(_query_transform_value)
           break;
       }
     }
