@@ -930,7 +930,7 @@ module.exports = new Class({
       debug_internals('ARRAY RESP', resp)
 
     // extras[type] = (Array.isArray(resp)) ? resp[0] : resp
-    let data = (Array.isArray(resp)) ? resp[0] : resp
+    let data = (Array.isArray(resp) && metadata.changes !== true) ? resp[0] : resp
 
     delete metadata.prop
     delete metadata.type
@@ -1114,7 +1114,7 @@ module.exports = new Class({
                 // console.log('onPeriodicalDoc', this.changes_buffer.length)
 
                 // this.__process_changes(this.changes_buffer[uuid])
-
+                params._extras.changes = true
                 this.process_default(err, this.changes_buffer[uuid], params)
 
                 // debug_internals('changes %s', new Date(), this.changes_buffer[uuid])
