@@ -1118,7 +1118,7 @@ module.exports = new Class({
               }
 
               if(this.changes_buffer_expire[uuid] < Date.now() - 900 && this.changes_buffer[uuid].resp.length > 0){
-                // console.log('onPeriodicalDoc', this.changes_buffer.length)
+                console.log('onPeriodicalDoc', this.changes_buffer[uuid].params, uuid)
 
                 // this.__process_changes(this.changes_buffer[uuid])
                 // params._extras.changes = true
