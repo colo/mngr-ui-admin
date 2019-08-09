@@ -231,18 +231,18 @@ module.exports = new Class({
       periodical: [
         {
 					default: function(req, next, app){
-            req = (req) ? Object.clone(req) : {}
+            // req = (req) ? Object.clone(req) : {}
             debug_internals('periodical default %s', new Date());
 
             // if(!req.query || (!req.query.register && !req.query.unregister)){
             if(Object.getLength(app.periodicals) > 0){
               // debug_internals('periodical default %O', app.periodicals);
 
-              Object.each(app.periodicals, function(req, uuid){
-                Object.each(req, function(periodical, id){
+              Object.each(app.periodicals, function(periodical_req, uuid){
+                Object.each(periodical_req, function(periodical, id){
                   let {query, params} = periodical
                   debug_internals('periodical default %s %O', id, periodical);
-                  // req.id = id
+                  // periodical_req.id = id
                   query.run(app.conn, function(err, resp){
                     debug_internals('periodical default run', err, resp)//resp
                     app.process_default(
@@ -1058,7 +1058,7 @@ module.exports = new Class({
     }
     else if(req.query.register === 'changes' && !this.feeds[uuid]){
       debug_internals('register FUNC %O %O ', req, params)//query,
-      
+
       debug_internals('registered %o %o', this.registered, this.registered_ids, req.query.q)
 
       // this.addEvent('onSuspend', this.__close_changes.pass(uuid, this))

@@ -252,7 +252,7 @@ module.exports = new Class({
 
 
   },
-  register_response: function(socket_or_req, resp_id, cb){
+  create_response_id: function(socket_or_req, resp_id){
     if(typeof resp_id !== 'string')
       resp_id = uuidv5(JSON.stringify(resp_id), this.ID)
 
@@ -270,6 +270,28 @@ module.exports = new Class({
     let new_resp_id = id +'.'+ resp_id +'.'+_index
 
     session.responses[resp_id].push(new_resp_id)
+
+    return new_resp_id
+  },
+  register_response: function(socket_or_req, resp_id, cb){
+    // if(typeof resp_id !== 'string')
+    //   resp_id = uuidv5(JSON.stringify(resp_id), this.ID)
+    //
+    // // debug_internals('register_response', socket_or_req.id)
+    // let id = this.__get_id_socket_or_req(socket_or_req)
+    //
+    let session = (socket_or_req.session) ? socket_or_req.session : socket_or_req.handshake.session
+    //
+    // // session._resp = session._resp+1 || 0
+    // // let resp_id = id +'.'+session._resp
+    if(!session.responses[resp_id]) session.responses[resp_id] = []
+    //
+    // let _index = session.responses[resp_id].length
+    //
+    // let new_resp_id = id +'.'+ resp_id +'.'+_index
+    //
+    // session.responses[resp_id].push(new_resp_id)
+    let new_resp_id = this.create_response_id(socket_or_req, resp_id)
 
     debug_internals('register_response', resp_id)
     if(new_resp_id){
@@ -563,7 +585,7 @@ module.exports = new Class({
                 // resp.opts = opts
 
                 if(next)
-                  next(response, err, resp)
+                  next(response, err, resp, opts)
 
                 /**
                 * if it's registered (socket) keep the event so it gets fired on each response
@@ -876,10 +898,11 @@ module.exports = new Class({
   __after_connect_inputs: function(cb){
 
     let _client_connect = function(index){
-      debug_internals('__after_connect_inputs %d', index)
+      debug_internals('__after_connect_inputs %o %d', this.__pipeline_cfg.connected, index)
 
-      this.__pipeline_cfg.connected.push(true)
-      if(this.__pipeline.inputs.length === this.__pipeline_cfg.connected.length){
+      // this.__pipeline_cfg.connected.push(true)
+      this.__pipeline_cfg.connected[index] = true
+      if(this.__pipeline_cfg.connected.every(function(input){ return input }) && this.__pipeline.inputs.length === this.__pipeline_cfg.connected.length){
         cb()
       }
 
@@ -888,7 +911,14 @@ module.exports = new Class({
     }.bind(this)
 
     Array.each(this.__pipeline.inputs, function(input, index){
-      input.addEvent('onClientConnect', _client_connect.pass(index));
+      debug('__after_connect_inputs INPUT', input.conn_pollers)
+      if(Object.getLength(input.conn_pollers) > 0 && Object.every(input.conn_pollers, function(poller, key){ return poller.connected })){
+        debug('__after_connect_inputs ALREADY CONNECTED', index)
+        _client_connect(index)
+      }
+      else{
+        input.addEvent('onClientConnect', _client_connect.pass(index));
+      }
     }.bind(this))
   },
   /**
