@@ -1027,7 +1027,7 @@ module.exports = new Class({
   register: function(query, req, params){
     req = Object.clone(req)
     params = (params) ? Object.clone(params) : {}
-    debug_internals('register FUNC %O %O ', req, params)//query,
+
     let {id} = req
     delete req.id
 
@@ -1057,6 +1057,8 @@ module.exports = new Class({
       // this.periodicals[uuid].push({query, params})
     }
     else if(req.query.register === 'changes' && !this.feeds[uuid]){
+      debug_internals('register FUNC %O %O ', req, params)//query,
+      
       debug_internals('registered %o %o', this.registered, this.registered_ids, req.query.q)
 
       // this.addEvent('onSuspend', this.__close_changes.pass(uuid, this))
