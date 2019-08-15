@@ -325,6 +325,8 @@ module.exports = new Class({
     let {err, result, resp, socket, input, opts} = payload
     let format = (opts && opts.query) ? opts.query.format : undefined
 
+    debug('generic_response', result.metadata)
+
     // result.opts = opts
     result.metadata.opts = opts
 
