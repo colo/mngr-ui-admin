@@ -30,13 +30,15 @@ module.exports = new Class({
   changes_buffer_expire: {},
   periodicals: {},
 
-  FROM: 'periodical',
+  // FROM: 'periodical',
   RANGES: {
     'periodical': 10000,
     'historical': 60000,
 
   },
   options: {
+    db: undefined,
+    table: undefined,
     type: undefined,
 
 		requests : {
@@ -53,8 +55,8 @@ module.exports = new Class({
               //
               // debug_internals('property', distinct_indexes);
 
-              let from = req.from || app.FROM
-              from = (from === 'minute' || from === 'hour') ? 'historical' : from
+              let from = req.from || app.options.table
+              // from = (from === 'minute' || from === 'hour') ? 'historical' : from
 
               let query = app.r
                 .db(app.options.db)
@@ -79,6 +81,8 @@ module.exports = new Class({
               if(req.query && req.query.transformation)
                 query = app.query_with_transformation(query, req.query.transformation)
 
+              debug('WITH PATH', req.params.path)
+              
               query = (req.params.path)
               ? query
                 .filter( app.r.row('metadata')('path').eq(req.params.path) )
@@ -128,8 +132,8 @@ module.exports = new Class({
               debug_internals('register', req);
               req.params = req.params || {}
 
-              let from = req.from || app.FROM
-              from = (from === 'minute' || from === 'hour') ? 'historical' : from
+              let from = req.from || app.options.table
+              // from = (from === 'minute' || from === 'hour') ? 'historical' : from
 
               let query
               let params = {
@@ -326,8 +330,8 @@ module.exports = new Class({
               let range = 'posix '+start+'-'+end+'/*'
 
 
-              let from = req.from || app.FROM
-              from = (from === 'minute' || from === 'hour') ? 'historical' : from
+              let from = req.from || app.options.table
+              // from = (from === 'minute' || from === 'hour') ? 'historical' : from
 
               let index = "timestamp"
 
@@ -421,8 +425,8 @@ module.exports = new Class({
               let range = 'posix '+start+'-'+end+'/*'
 
 
-              let from = req.from || app.FROM
-              from = (from === 'minute' || from === 'hour') ? 'historical' : from
+              let from = req.from || app.options.table
+              // from = (from === 'minute' || from === 'hour') ? 'historical' : from
 
               let index = "timestamp"
 
