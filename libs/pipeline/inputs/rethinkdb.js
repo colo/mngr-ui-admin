@@ -81,12 +81,14 @@ module.exports = new Class({
               if(req.query && req.query.transformation)
                 query = app.query_with_transformation(query, req.query.transformation)
 
-              debug('WITH PATH', req.params.path)
-              
-              query = (req.params.path)
-              ? query
-                .filter( app.r.row('metadata')('path').eq(req.params.path) )
-              : query
+              // debug('WITH PATH', req.params.path)
+              if(req.query && req.query.filter)
+                query = app.query_with_filter(query, req.query.filter)
+
+              // query = (req.params.path)
+              // ? query
+              //   .filter( app.r.row('metadata')('path').eq(req.params.path) )
+              // : query
 
               if (req.query && req.query.aggregation && !req.query.q) {
                 query =  this.result_with_aggregation(query, req.query.aggregation)
@@ -599,6 +601,84 @@ module.exports = new Class({
 
 		this.log('mngr-ui-admin:apps:libs:Pipeline:Inputs:Rethinkdb', 'info', 'mngr-ui-admin:apps:libs:Pipeline:Inputs:Rethinkdb started');
   },
+  query_with_filter: function(query, filter){
+
+    let _query_filter, _query_filter_value
+
+    if(filter){
+      if(typeof filter === 'string'){
+        // _query_filter = filter.split(':')[0]
+        // _query_filter_value = filter.split(':').slice(1)
+        debug('query_with_filter STRING', filter, eval("this."+filter))
+        query = query.filter(eval("this."+filter))
+        debug('query_with_filter STRING', filter, query)
+      }
+      else{
+        // _query_filter = Object.keys(filter)[0]
+        // _query_filter_value = filter[_query_filter]
+        query = query.filter(filter)
+
+        debug('query_with_filter OBJECT', filter, query)
+      }
+
+      // debug_internals('query_with_filter %o', filter, _query_filter, _query_filter_value)
+
+      /**
+      * for "contains"
+      * ex:
+      * "filter":{
+    	*	"contains": ["('data')('status')", 500]
+    	* }
+      **/
+      // let _query_filter_param
+      // if(Array.isArray(_query_filter_value)){
+      //   _query_filter_param = _query_filter_value[1]
+      //   _query_filter_value = _query_filter_value[0]
+      // }
+      //
+      // if(_query_filter_value)
+      //   query = query
+      //   .map(
+      //     function (doc) {
+      //       return eval( "doc"+_query_filter_value );
+      //     }.bind(this)
+      //   )
+      //
+      // switch(_query_filter){
+      //   case 'count':
+      //     query = query.count()
+      //     break;
+      //
+      //   case 'min':
+      //     query = query.min()
+      //     break;
+      //
+      //   case 'max':
+      //     query = query.max()
+      //     break;
+      //
+      //   case 'sum':
+      //     query = query.sum()
+      //     break;
+      //
+      //   case 'avg':
+      //     query = query.avg()
+      //     break;
+      //
+      //   case 'distinct':
+      //     query = query.distinct()
+      //     break;
+      //
+      //   case 'contains':
+      //     query = query.contains(_query_filter_param)
+      //     break;
+      // }
+    }
+
+
+
+    return query
+  },
   query_with_transformation: function(query, transformation){
     let _query_transform, _query_transform_value
 
@@ -809,10 +889,13 @@ module.exports = new Class({
       path: doc('group')
     }
 
-    if(query && query.filter){
-      debug_internals('build_default_query_result FILTER', query.filter)
+    /**
+    * @TODO - check this
+    **/
+    if(query && query.doc_filter){
+      debug_internals('build_default_query_result DOC FILTER', query.doc_filter)
       // r_query = r_query.filter(function(doc){ return doc('data')('status').eq(301) })
-      r_query = r_query.filter(function(doc){ return eval( "doc"+query.filter ) })
+      r_query = r_query.filter(function(doc){ return eval( "doc"+query.doc_filter ) })
 
     }
 
