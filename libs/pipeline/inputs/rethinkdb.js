@@ -1017,7 +1017,8 @@ module.exports = new Class({
       debug_internals('ARRAY RESP', resp)
 
     // extras[type] = (Array.isArray(resp)) ? resp[0] : resp
-    let data = (Array.isArray(resp) && metadata.changes !== true) ? resp[0] : resp
+    // let data = (Array.isArray(resp) && metadata.changes !== true) ? resp[0] : resp
+    let data = resp
 
     delete metadata.prop
     delete metadata.type
