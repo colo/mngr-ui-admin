@@ -27,6 +27,8 @@ const uuidv5 = require('uuid/v5')
 let data_to_stat = require('node-tabular-data').data_to_stat
 let data_to_tabular = require('node-tabular-data').data_to_tabular
 
+let eachOf = require( 'async' ).eachOf
+
 module.exports = new Class({
   Extends: App,
   // Implements: Chain,
@@ -365,72 +367,59 @@ module.exports = new Class({
         debug('FORMAT', result.data)
         // process.extit(1)
         // let stat_counter = 0
-        let not_equal_length = true
+        // let not_equal_length = true
 
-        for(let i = 0; i < result.data.length; i++){
+        let transformed = []
+
+        eachOf(result.data, function (value, key, callback) {
           let stat = {}
-          stat['data'] = result.data[i]
-
-          let transformed = []
+          stat['data'] = value
           this.__transform_data('stat', '', stat, this.ID, function(value){
-            transformed[i] = value.stat
-            // transformed.push( value.stat )
+            transformed[key] = value.stat
+            callback()
+          })
+        }.bind(this), function (err) {
 
-            // stat_counter++
-            throw new Error('check for euality length maybe Array.every Array.some')
-            do{
+          result['data'] = transformed
 
-            } while(equal_length)
+          debug('FORMAT %O', transformed)
+          // process.exit(1)
+          // if( format == 'tabular' && !err && value.stat['data'] && (value.stat['data'].length > 0 || Object.getLength(value.stat['data']) > 0)){
+          if( format == 'tabular' && !err && result['data'].length > 0){
+            let transformed = []
 
-            if(transformed.length == result.data.length || i >= result.data.length){
-              // cb(transformed)
+            eachOf(result.data, function (value, key, callback) {
+              this.__transform_data('tabular', 'data', value.data, this.id, function(value){
+                debug_internals(input+': __transform_data tabular %O', value) //result
+                transformed[key] = value
+                callback()
+              }.bind(this))
+
+            }.bind(this), function(err){
               result['data'] = transformed
 
-              debug('FORMAT %O', transformed)
-              // process.exit(1)
-              // if( format == 'tabular' && !err && value.stat['data'] && (value.stat['data'].length > 0 || Object.getLength(value.stat['data']) > 0)){
-              if( format == 'tabular' && !err && result['data'].length > 0){
-                let transformed = []
-
-                for(let j = 0; j < result.data.length; j++){
-
-                  this.__transform_data('tabular', 'data', result.data[j].data, this.id, function(value){
-                    debug_internals(input+': __transform_data tabular %O', value) //result
-                    transformed[j] = value
-
-                    if(j === result.data.length - 1){
-                      result['data'] = transformed
-
-                      if(resp){
-                        resp.status(status).json(result)
-                      }
-                      else{
-                        socket.emit(input, result)
-                      }
-                    }
-
-
-                  }.bind(this))
-
-                }
-
-
+              if(resp){
+                resp.status(status).json(result)
               }
               else{
-
-                if(resp){
-                  resp.status(status).json(result)
-                }
-                else{
-                  socket.emit(input, result)
-                }
+                socket.emit(input, result)
               }
+            }.bind(this))
 
+          }
+          else{
+
+            if(resp){
+              resp.status(status).json(result)
             }
-          }.bind(this))
+            else{
+              socket.emit(input, result)
+            }
+          }
+
+        }.bind(this))
 
 
-        }
 
         // this.__transform_data('stat', '', stat, this.ID, function(value){
         //   debug_internals(input+': __transform_data stat %O', value.stat) //result
