@@ -323,9 +323,112 @@ module.exports = new Class({
       while (_chain.callChain(err, resp) !== false) {}
     }
   },
+  // __async_result_data_to_tabular: function(data, cb){
+  //   let transformed = []
+  //
+  //   eachOf(data, function (value, key, callback) {
+  //     this.__transform_data('tabular', 'data', value.data, this.id, function(value){
+  //       debug_internals(': __transform_data tabular %O', value) //result
+  //       transformed[key] = value
+  //       callback()
+  //     }.bind(this))
+  //
+  //   }.bind(this), cb)
+  // },
+
+  data_formater: function(data, format, cb){
+    debug('data_formater FUNC %s %o', format, data)
+    if(format && (data.length > 0 || Object.getLength(data) > 0)){
+
+      if(format === 'merged'){
+        if(Array.isArray(data) && Array.isArray(data[0])){//array of array
+          // process.exit(1)
+          for(let i = 0; i < data.length; i++){
+            data[i] = this.merge_result_data(data[i])
+          }
+        }
+        else{
+          data = this.merge_result_data(data)
+        }
+
+        cb(data)
+      }
+      else{
+
+        // let stat = {}
+        // stat['data'] = (!Array.isArray(data)) ? [data] : data
+        data = (!Array.isArray(data)) ? [data] : data
+
+        debug('FORMAT %o', data)
+        // process.extit(1)
+        // let stat_counter = 0
+        // let not_equal_length = true
+
+        let transformed = []
+
+        eachOf(data, function (value, key, callback) {
+          let stat = {}
+          stat['data'] = value
+          this.__transform_data('stat', '', stat, this.ID, function(value){
+            transformed[key] = (value && value.stat) ? value.stat : undefined
+            callback()
+          })
+        }.bind(this), function (err) {
+
+          data = transformed
+
+          debug('FORMAT trasnformed %O', transformed)
+          // process.exit(1)
+          // if( format == 'tabular' && !err && value.stat['data'] && (value.stat['data'].length > 0 || Object.getLength(value.stat['data']) > 0)){
+          if( format == 'tabular' && data.length > 0){
+            let transformed = []
+
+            // this.__async_result_data_to_tabular(data,)
+
+            // if(resp){
+            //   resp.status(status).json(result)
+            // }
+            // else{
+            //   socket.emit(input, result)
+            // }
+            eachOf(data, function (value, key, callback) {
+              if(value && value.data && (value.data.length > 0 || Object.getLength(value.data))){
+                this.__transform_data('tabular', 'data', value.data, this.id, function(value){
+                  debug_internals(': __transform_data tabular -> %o', value) //result
+                  transformed[key] = value
+                  callback()
+                }.bind(this))
+              }
+              else{
+                // transformed[key] = undefined
+                callback()
+              }
+            }.bind(this), function(err){
+              data = transformed
+
+              cb(data)
+            }.bind(this))
+
+          }
+          else{
+
+            cb(data)
+          }
+
+        }.bind(this))
+
+
+      }
+
+
+    }
+    else{
+      cb(data)
+    }
+  },
   generic_response: function(payload){
     let {err, result, resp, socket, input, opts} = payload
-    let format = (opts && opts.query) ? opts.query.format : undefined
+    // let format = (opts && opts.query) ? opts.query.format : undefined
 
     debug('generic_response', result.metadata)
 
@@ -338,128 +441,101 @@ module.exports = new Class({
     if(err)
       result = Object.merge(err, result)
 
-    if(format && !err && (result['data'].length > 0 || Object.getLength(result['data']) > 0)){
-
-      if(format === 'merged'){
-        if(Array.isArray(result['data']) && Array.isArray(result['data'][0])){//array of array
-          // process.exit(1)
-          for(let i = 0; i < result['data'].length; i++){
-            result['data'][i] = this.merge_result_data(result['data'][i])
-          }
-        }
-        else{
-          result['data'] = this.merge_result_data(result['data'])
-        }
-
-        if(resp){
-          resp.status(status).json(result)
-        }
-        else{
-          socket.emit(input, result)
-        }
-      }
-      else{
-
-        // let stat = {}
-        // stat['data'] = (!Array.isArray(result['data'])) ? [result['data']] : result['data']
-        result.data = (!Array.isArray(result.data)) ? [result.data] : result.data
-
-        debug('FORMAT', result.data)
-        // process.extit(1)
-        // let stat_counter = 0
-        // let not_equal_length = true
-
-        let transformed = []
-
-        eachOf(result.data, function (value, key, callback) {
-          let stat = {}
-          stat['data'] = value
-          this.__transform_data('stat', '', stat, this.ID, function(value){
-            transformed[key] = value.stat
-            callback()
-          })
-        }.bind(this), function (err) {
-
-          result['data'] = transformed
-
-          debug('FORMAT %O', transformed)
-          // process.exit(1)
-          // if( format == 'tabular' && !err && value.stat['data'] && (value.stat['data'].length > 0 || Object.getLength(value.stat['data']) > 0)){
-          if( format == 'tabular' && !err && result['data'].length > 0){
-            let transformed = []
-
-            eachOf(result.data, function (value, key, callback) {
-              this.__transform_data('tabular', 'data', value.data, this.id, function(value){
-                debug_internals(input+': __transform_data tabular %O', value) //result
-                transformed[key] = value
-                callback()
-              }.bind(this))
-
-            }.bind(this), function(err){
-              result['data'] = transformed
-
-              if(resp){
-                resp.status(status).json(result)
-              }
-              else{
-                socket.emit(input, result)
-              }
-            }.bind(this))
-
-          }
-          else{
-
-            if(resp){
-              resp.status(status).json(result)
-            }
-            else{
-              socket.emit(input, result)
-            }
-          }
-
-        }.bind(this))
-
-
-
-        // this.__transform_data('stat', '', stat, this.ID, function(value){
-        //   debug_internals(input+': __transform_data stat %O', value.stat) //result
-        //
-        //   result['data'] = value.stat['data']
-        //
-        //   if( format == 'tabular' && !err && value.stat['data'] && (value.stat['data'].length > 0 || Object.getLength(value.stat['data']) > 0)){
-        //
-        //     this.__transform_data('tabular', 'data', value.stat['data'], this.id, function(value){
-        //       debug_internals(input+': __transform_data tabular %O', value) //result
-        //
-        //       result['data'] = value
-        //
-        //       if(resp){
-        //         resp.status(status).json(result)
-        //       }
-        //       else{
-        //         socket.emit(input, result)
-        //       }
-        //
-        //     }.bind(this))
-        //
-        //   }
-        //   else{
-        //
-        //     if(resp){
-        //       resp.status(status).json(result)
-        //     }
-        //     else{
-        //       socket.emit(input, result)
-        //     }
-        //   }
-        //
-        //
-        // }.bind(this))
-      }
-
-
-    }
-    else{
+    // if(format && !err && (result['data'].length > 0 || Object.getLength(result['data']) > 0)){
+    //
+    //   if(format === 'merged'){
+    //     if(Array.isArray(result['data']) && Array.isArray(result['data'][0])){//array of array
+    //       // process.exit(1)
+    //       for(let i = 0; i < result['data'].length; i++){
+    //         result['data'][i] = this.merge_result_data(result['data'][i])
+    //       }
+    //     }
+    //     else{
+    //       result['data'] = this.merge_result_data(result['data'])
+    //     }
+    //
+    //     if(resp){
+    //       resp.status(status).json(result)
+    //     }
+    //     else{
+    //       socket.emit(input, result)
+    //     }
+    //   }
+    //   else{
+    //
+    //     // let stat = {}
+    //     // stat['data'] = (!Array.isArray(result['data'])) ? [result['data']] : result['data']
+    //     result.data = (!Array.isArray(result.data)) ? [result.data] : result.data
+    //
+    //     debug('FORMAT', result.data)
+    //     // process.extit(1)
+    //     // let stat_counter = 0
+    //     // let not_equal_length = true
+    //
+    //     let transformed = []
+    //
+    //     eachOf(result.data, function (value, key, callback) {
+    //       let stat = {}
+    //       stat['data'] = value
+    //       this.__transform_data('stat', '', stat, this.ID, function(value){
+    //         transformed[key] = value.stat
+    //         callback()
+    //       })
+    //     }.bind(this), function (err) {
+    //
+    //       result['data'] = transformed
+    //
+    //       debug('FORMAT %O', transformed)
+    //       // process.exit(1)
+    //       // if( format == 'tabular' && !err && value.stat['data'] && (value.stat['data'].length > 0 || Object.getLength(value.stat['data']) > 0)){
+    //       if( format == 'tabular' && !err && result['data'].length > 0){
+    //         let transformed = []
+    //
+    //         // this.__async_result_data_to_tabular(result.data,)
+    //
+    //         // if(resp){
+    //         //   resp.status(status).json(result)
+    //         // }
+    //         // else{
+    //         //   socket.emit(input, result)
+    //         // }
+    //         eachOf(result.data, function (value, key, callback) {
+    //           this.__transform_data('tabular', 'data', value.data, this.id, function(value){
+    //             debug_internals(input+': __transform_data tabular %O', value) //result
+    //             transformed[key] = value
+    //             callback()
+    //           }.bind(this))
+    //
+    //         }.bind(this), function(err){
+    //           result['data'] = transformed
+    //
+    //           if(resp){
+    //             resp.status(status).json(result)
+    //           }
+    //           else{
+    //             socket.emit(input, result)
+    //           }
+    //         }.bind(this))
+    //
+    //       }
+    //       else{
+    //
+    //         if(resp){
+    //           resp.status(status).json(result)
+    //         }
+    //         else{
+    //           socket.emit(input, result)
+    //         }
+    //       }
+    //
+    //     }.bind(this))
+    //
+    //
+    //   }
+    //
+    //
+    // }
+    // else{
 
       if(resp){
         resp.status(status).json(result)
@@ -470,7 +546,7 @@ module.exports = new Class({
       }
 
 
-    }
+    // }
 
 
   },
@@ -627,6 +703,9 @@ module.exports = new Class({
                 // }
                 if(params && params.prop && !params.value){
                   let _arr_resp = resp['data']
+
+                  debug_internals('PARAMS %o', _arr_resp) //resp
+
                   if(!Array.isArray(_arr_resp))
                     _arr_resp = [_arr_resp]
 
@@ -639,12 +718,12 @@ module.exports = new Class({
                       })
                   })
 
-                  if(!Array.isArray(resp[input])){
-                    resp['data'] = _arr_resp[0]
-                  }
-                  else{
+                  // if(!Array.isArray(resp[input])){
+                  //   resp['data'] = _arr_resp[0]
+                  // }
+                  // else{
                     resp['data'] = _arr_resp
-                  }
+                  // }
 
                 }
                 // send_resp[req_id](resp)
@@ -709,14 +788,16 @@ module.exports = new Class({
         // this.response(response, {from: from, input: 'domains', domains: result})
         debug_internals('from cache %o', params, result)
         let resp = {id: response, metadata: {from, input, cache: {key: cache_key, ttl: this[input.toUpperCase()+'_TTL']}}}
-        if(params && (Object.every(params, function(value, key){ return value === undefined || key === 'path' }) || params.value)){
+        if(params && (Object.every(params, function(value, key){ return value === undefined }) || params.value)){
           // resp['data'] = result
-          resp = Object.merge(resp, result)
+          debug_internals('from cache MERGE %o', result)
+          // resp.data = Object.merge(resp.data, result.data)
+          resp.data = result.data
         }
         else{
 
           // resp[input] = {}
-          let _arr_resp = result
+          let _arr_resp = result.data
           if(!Array.isArray(_arr_resp))
             _arr_resp = [_arr_resp]
 
@@ -728,12 +809,12 @@ module.exports = new Class({
             })
           })
 
-          if(!Array.isArray(resp['data'])){
-            resp['data'] = _arr_resp[0]
-          }
-          else{
+          // if(!Array.isArray(resp['data'])){
+          //   resp['data'] = _arr_resp[0]
+          // }
+          // else{
             resp['data'] = _arr_resp
-          }
+          // }
 
           // Object.each(params, function(value, key){//key may be anything, value is usually what we search for
           //   if(result[value] && key !== 'path')

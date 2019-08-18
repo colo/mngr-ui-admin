@@ -56,7 +56,7 @@ module.exports = new Class({
               // debug_internals('property', distinct_indexes);
 
               let from = req.from || app.options.table
-              // from = (from === 'minute' || from === 'hour') ? 'historical' : from
+              
 
               let query = app.r
                 .db(app.options.db)
