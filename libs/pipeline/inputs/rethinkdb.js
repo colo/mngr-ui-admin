@@ -56,7 +56,7 @@ module.exports = new Class({
               // debug_internals('property', distinct_indexes);
 
               let from = req.from || app.options.table
-              
+
 
               let query = app.r
                 .db(app.options.db)
@@ -132,6 +132,7 @@ module.exports = new Class({
 
             if(req.query.register || req.query.unregister){
               debug_internals('register', req);
+              // process.exit(1)
               req.params = req.params || {}
 
               let from = req.from || app.options.table
@@ -1037,8 +1038,13 @@ module.exports = new Class({
   },
   __clean_registered_id: function(uuid, id, all_matching){
     debug_internals('__clean_registered_id uuid %s', uuid, id,all_matching)
+    // debug_internals('register %O', this.registered_ids)
+    // if(Object.getLength(this.registered_ids) > 0)
+      // process.exit(1)
+
 
     if(this.registered_ids[uuid]){
+
       if(all_matching){
 
         let _registered_ids = Array.clone(this.registered_ids[uuid])
@@ -1087,12 +1093,23 @@ module.exports = new Class({
   unregister: function(req, params){
     req = Object.clone(req)
     params = Object.clone(params)
-    debug_internals('UNregister %O', req)
+    debug_internals('UNregister %o', req, this.registered_ids)
+    // if(Object.getLength(this.registered_ids) > 0)
+    //   process.exit(1)
+
     let {id} = req
     delete req.id
 
     if(req.query.unregister === true || req.query.unregister === '*'){
+
+
       let _registered_ids= Object.clone(this.registered_ids)
+
+      // if(Object.getLegth(_registered_ids) > 0){
+        // debug_internals('UNregister %O', this.registered_ids)
+        // process.exit(1)
+      // }
+
       Object.each(_registered_ids, function(ids, uuid){
         this.__clean_registered_id(uuid, id, true)
         // if(ids.contains(id)) this.registered_ids[uuid] = this.registered_ids[uuid].erase(id)
@@ -1143,6 +1160,7 @@ module.exports = new Class({
       if(!this.periodicals[uuid]) this.periodicals[uuid] = {}
       this.periodicals[uuid][id] = {query, params}
       // this.periodicals[uuid].push({query, params})
+
     }
     else if(req.query.register === 'changes' && !this.feeds[uuid]){
       debug_internals('register FUNC %O %O ', req, params)//query,

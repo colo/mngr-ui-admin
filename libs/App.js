@@ -263,13 +263,22 @@ module.exports = new Class({
 
     let session = (socket_or_req.session) ? socket_or_req.session : socket_or_req.handshake.session
 
+    let isSocket = (socket_or_req.session) ? false : true
+
     // session._resp = session._resp+1 || 0
     // let resp_id = id +'.'+session._resp
     if(!session.responses[resp_id]) session.responses[resp_id] = []
 
     let _index = session.responses[resp_id].length
 
-    let new_resp_id = id +'.'+ resp_id +'.'+_index
+    let new_resp_id
+
+    if(isSocket){
+      new_resp_id = id +'.'+ resp_id
+    }
+    else{
+      new_resp_id = id +'.'+ resp_id +'.'+_index
+    }
 
     session.responses[resp_id].push(new_resp_id)
 
@@ -848,6 +857,7 @@ module.exports = new Class({
     // this.__process_session({socket, next: this.__process_pipeline.pass({next: this.__process_request})})
 
 		socket.on('disconnect', function () {
+      // process.exit(1)
       this.remove_matching_response_events(socket.id)
 
       debug_internals('socket.io disconnect', socket.id, this.__pipeline, this.__pipeline_cfg, this.__response_events)
