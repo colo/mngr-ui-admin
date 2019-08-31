@@ -674,6 +674,11 @@ module.exports = new Class({
         query = query.filter(eval("this."+filter))
         debug('query_with_filter STRING', filter, query)
       }
+      else if(Array.isArray(filter)){//allow chaining filters
+        Array.each(Array.clone(filter), function(_filter, index){
+          query = this.query_with_filter(query, _filter)
+        }.bind(this))
+      }
       else{
         // _query_filter = Object.keys(filter)[0]
         // _query_filter_value = filter[_query_filter]
