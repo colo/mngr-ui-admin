@@ -374,6 +374,9 @@ module.exports = new Class({
               if(req.query && req.query.transformation)
                 query = app.query_with_transformation(query, req.query.transformation)
 
+              if(req.query && req.query.filter)
+                query = app.query_with_filter(query, req.query.filter)
+
               if (req.query && req.query.aggregation && !req.query.q) {
                 query =  this.result_with_aggregation(query, req.query.aggregation)
               }
