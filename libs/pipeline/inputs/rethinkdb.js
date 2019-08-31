@@ -78,13 +78,41 @@ module.exports = new Class({
                 query = query.getAll(app.r.args(req.params.value) , {index: pluralize(req.params.prop, 1)})
               }
 
-              if(req.query && req.query.transformation)
-                query = app.query_with_transformation(query, req.query.transformation)
+              /**
+              * orderBy need to be called before filters (its order table), other trasnform like "slice" are run after "filters"
+              **/
+              let transformation = (req.query && req.query.transformation) ? req.query.transformation : undefined
+              if(
+                transformation
+                && (transformation.orderBy
+                  || (Array.isArray(transformation) && transformation.some(function(trasnform){ return Object.keys(trasnform)[0] === 'orderBy'}))
+                )
+              ){
+                let orderBy = (transformation.orderBy) ? transformation.orderBy : transformation.filter(function(trasnform){ return Object.keys(trasnform)[0] === 'orderBy' })[0]//one orderBy
+                query = app.query_with_transformation(query, orderBy)
 
-              // debug('WITH PATH', req.params.path)
+                if(Array.isArray(transformation)){
+                  transformation.each(function(trasnform, index){
+                    if(Object.keys(trasnform)[0] === 'orderBy')
+                      transformation[index] = undefined
+                  })
+
+                  transformation = transformation.clean()
+                }
+
+
+              }
+
               if(req.query && req.query.filter)
                 query = app.query_with_filter(query, req.query.filter)
 
+              if(transformation)
+                query = app.query_with_transformation(query, transformation)
+              /**
+              * orderBy need to be called before filters (its order table), other trasnform like "slice" are run after "filters"
+              **/
+
+              // debug('WITH PATH', req.params.path)
               // query = (req.params.path)
               // ? query
               //   .filter( app.r.row('metadata')('path').eq(req.params.path) )
@@ -101,7 +129,8 @@ module.exports = new Class({
                     function (doc) {
                         return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
                     }
-                )
+                  )
+
               }
 
               query.run(app.conn, function(err, resp){
@@ -371,11 +400,39 @@ module.exports = new Class({
 
 
 
-              if(req.query && req.query.transformation)
-                query = app.query_with_transformation(query, req.query.transformation)
+              /**
+              * orderBy need to be called before filters (its order table), other trasnform like "slice" are run after "filters"
+              **/
+              let transformation = (req.query && req.query.transformation) ? req.query.transformation : undefined
+              if(
+                transformation
+                && (transformation.orderBy
+                  || (Array.isArray(transformation) && transformation.some(function(trasnform){ return Object.keys(trasnform)[0] === 'orderBy'}))
+                )
+              ){
+                let orderBy = (transformation.orderBy) ? transformation.orderBy : transformation.filter(function(trasnform){ return Object.keys(trasnform)[0] === 'orderBy' })[0]//one orderBy
+                query = app.query_with_transformation(query, orderBy)
+
+                if(Array.isArray(transformation)){
+                  transformation.each(function(trasnform, index){
+                    if(Object.keys(trasnform)[0] === 'orderBy')
+                      transformation[index] = undefined
+                  })
+
+                  transformation = transformation.clean()
+                }
+
+
+              }
 
               if(req.query && req.query.filter)
                 query = app.query_with_filter(query, req.query.filter)
+
+              if(transformation)
+                query = app.query_with_transformation(query, transformation)
+              /**
+              * orderBy need to be called before filters (its order table), other trasnform like "slice" are run after "filters"
+              **/
 
               if (req.query && req.query.aggregation && !req.query.q) {
                 query =  this.result_with_aggregation(query, req.query.aggregation)
@@ -692,7 +749,7 @@ module.exports = new Class({
         _query_transform_value = transformation.split(':').slice(1)
       }
       else if(Array.isArray(transformation)){//allow chaining transformations
-        Array.each(transformation, function(transform, index){
+        Array.each(Array.clone(transformation), function(transform, index){
           query = this.query_with_transformation(query, transform)
         }.bind(this))
       }
@@ -700,48 +757,61 @@ module.exports = new Class({
         _query_transform = Object.keys(transformation)[0]
         _query_transform_value = transformation[_query_transform]
       }
-      switch(_query_transform){
-        case 'sample':
-          query = query.sample(_query_transform_value[0] * 1)
-          break;
 
-        case 'limit':
-          query = query.limit(_query_transform_value[0] * 1)
-          break;
+      if(_query_transform){
+        debug('query_with_transformation %o %o', _query_transform, _query_transform_value)
 
-        case 'skip':
-          query = query.skip(_query_transform_value[0] * 1)
-          break;
+        switch(_query_transform){
+          case 'sample':
+            query = query.sample(_query_transform_value * 1)
+            break;
 
-        case 'slice':
-          query = query.slice(_query_transform_value[0] * 1, _query_transform_value[1] * 1, _query_transform_value[2])
-          break;
+          case 'limit':
+            query = query.limit(_query_transform_value * 1)
+            break;
 
-        case 'orderBy':
-          // query = query.orderBy(eval(_query_transform_value))
-          let value = (_query_transform_value.index) ? _query_transform_value.index : _query_transform_value
+          /**
+          * don't use nth, use slice instead (produce an error, because query end up needing a sequence after this)
+          **/
+          case 'nth':
+            query = query.nth(_query_transform_value * 1)
+            break;
 
-          if(value && value.indexOf('(') > -1){
-            value = value.replace('r.', '')
-            value = value.replace(')', '')
-            debug('orderBy ', value)
-            let order = value.substring(0, value.indexOf('('))
-            let index = value.substring(value.indexOf('(') + 1)
-            debug('orderBy ',order, index)
+          case 'skip':
+            query = query.skip(_query_transform_value * 1)
+            break;
 
-            if(_query_transform_value.index)
-              _query_transform_value.index = this.r[order](index)
-            else
-              _query_transform_value = this.r[order](index)
-          }
+          case 'slice':
+            query = query.slice(_query_transform_value[0] * 1, _query_transform_value[1] * 1, _query_transform_value[2])
+            break;
+
+          case 'orderBy':
+            // query = query.orderBy(eval(_query_transform_value))
+            let value = (_query_transform_value.index) ? _query_transform_value.index : _query_transform_value
+
+            if(value && value.indexOf('(') > -1){
+              value = value.replace('r.', '')
+              value = value.replace(')', '')
+              debug('orderBy ', value)
+              let order = value.substring(0, value.indexOf('('))
+              let index = value.substring(value.indexOf('(') + 1)
+              debug('orderBy ',order, index)
+
+              if(_query_transform_value.index)
+                _query_transform_value.index = this.r[order](index)
+              else
+                _query_transform_value = this.r[order](index)
+            }
 
 
 
-          query = query.orderBy(_query_transform_value)
-          break;
+            query = query.orderBy(_query_transform_value)
+            break;
+        }
       }
     }
 
+    debug('query_with_transformation %o', query)
     return query
   },
   result_with_aggregation: function(query, aggregation){
