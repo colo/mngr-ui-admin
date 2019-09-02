@@ -92,6 +92,7 @@ module.exports = new Class({
                 query = app.query_with_transformation(query, orderBy)
 
                 if(Array.isArray(transformation)){
+                  transformation = Array.clone(transformation)
                   transformation.each(function(trasnform, index){
                     if(Object.keys(trasnform)[0] === 'orderBy')
                       transformation[index] = undefined
@@ -144,7 +145,8 @@ module.exports = new Class({
                       type: (req.params && req.params.path) ? req.params.path : app.options.type,
                       id: req.id,
                       transformation: (req.query.transformation) ? req.query.transformation : undefined,
-                      aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+                      aggregation: (req.query.aggregation) ? req.query.aggregation : undefined,
+                      filter: (req.query.filter) ? req.query.filter : undefined
                       // prop: pluralize(index)
                     }
                   }
@@ -174,7 +176,8 @@ module.exports = new Class({
                   type: (req.params && req.params.path) ? req.params.path : app.options.type,
                   id: req.id,
                   transformation: (req.query.transformation) ? req.query.transformation : undefined,
-                  aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+                  aggregation: (req.query.aggregation) ? req.query.aggregation : undefined,
+                  filter: (req.query.filter) ? req.query.filter : undefined
                   // prop: pluralize(index)
                 }
               }
@@ -414,6 +417,7 @@ module.exports = new Class({
                 query = app.query_with_transformation(query, orderBy)
 
                 if(Array.isArray(transformation)){
+                  trasnformation = Array.clone(transformation)
                   transformation.each(function(trasnform, index){
                     if(Object.keys(trasnform)[0] === 'orderBy')
                       transformation[index] = undefined
@@ -461,7 +465,8 @@ module.exports = new Class({
                       Range: range,
                       range: req.opt.range,
                       transformation: (req.query.transformation) ? req.query.transformation : undefined,
-                      aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+                      aggregation: (req.query.aggregation) ? req.query.aggregation : undefined,
+                      filter: (req.query.filter) ? req.query.filter : undefined
                       // prop: pluralize(index)
                     }
                   }
@@ -513,7 +518,8 @@ module.exports = new Class({
                   Range: range,
                   range: req.opt.range,
                   transformation: (req.query.transformation) ? req.query.transformation : undefined,
-                  aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+                  aggregation: (req.query.aggregation) ? req.query.aggregation : undefined,
+                  filter: (req.query.filter) ? req.query.filter : undefined
                   // prop: pluralize(index)
                 }
               }
