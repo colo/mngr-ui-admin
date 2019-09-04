@@ -134,7 +134,7 @@ module.exports = new Class({
 
               }
 
-              query.run(app.conn, function(err, resp){
+              query.run(app.conn, {arrayLimit: 1000000}, function(err, resp){
                 debug_internals('run', err)//resp
                 app.process_default(
                   err,
@@ -282,7 +282,7 @@ module.exports = new Class({
                   let {query, params} = periodical
                   debug_internals('periodical default %s %O', id, periodical);
                   // periodical_req.id = id
-                  query.run(app.conn, function(err, resp){
+                  query.run(app.conn, {arrayLimit: 1000000}, function(err, resp){
                     debug_internals('periodical default run', err, resp)//resp
                     app.process_default(
                       err,
@@ -327,7 +327,7 @@ module.exports = new Class({
               //   )
               // }
               //
-              // query.run(app.conn, function(err, resp){
+              // query.run(app.conn, {arrayLimit: 1000000}, function(err, resp){
               //   debug_internals('run', err)//resp
               //   app.process_default(
               //     err,
@@ -452,7 +452,7 @@ module.exports = new Class({
                 )
               }
 
-              query.run(app.conn, function(err, resp){
+              query.run(app.conn, {arrayLimit: 1000000}, function(err, resp){
                 debug_internals('run', err) //resp
                 app.process_default(
                   err,
