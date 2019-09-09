@@ -935,6 +935,8 @@ module.exports = new Class({
     // if(id){
       if(this.__pipeline.inputs.length != this.__pipeline_cfg.connected.length){
           this.__after_connect_inputs(
+            this.__pipeline,
+            this.__pipeline_cfg,
             this.__resume_pipeline.pass([this.__pipeline, this.__pipeline_cfg, id, cb.pass(this.__pipeline), false], this)
           )
       }
@@ -1036,6 +1038,8 @@ module.exports = new Class({
       }
 
       this.__after_connect_inputs(
+        this.__pipeline,
+        this.__pipeline_cfg,
         this.__resume_pipeline.pass([this.__pipeline, this.__pipeline_cfg, id, next], this)
       )
 
@@ -1047,6 +1051,8 @@ module.exports = new Class({
     else{
       if(this.__pipeline.inputs.length != this.__pipeline_cfg.connected.length){
           this.__after_connect_inputs(
+            this.__pipeline,
+            this.__pipeline_cfg,
             this.__resume_pipeline.pass([this.__pipeline, this.__pipeline_cfg, id, next], this)
           )
       }
@@ -1057,22 +1063,22 @@ module.exports = new Class({
 
 
   },
-  __after_connect_inputs: function(cb){
+  __after_connect_inputs: function(pipeline, cfg, cb){
 
     let _client_connect = function(index){
-      debug_internals('__after_connect_inputs %o %d', this.__pipeline_cfg.connected, index)
+      debug_internals('__after_connect_inputs %o %d', cfg.connected, index)
 
-      // this.__pipeline_cfg.connected.push(true)
-      this.__pipeline_cfg.connected[index] = true
-      if(this.__pipeline_cfg.connected.every(function(input){ return input }) && this.__pipeline.inputs.length === this.__pipeline_cfg.connected.length){
+      // cfg.connected.push(true)
+      cfg.connected[index] = true
+      if(cfg.connected.every(function(input){ return input }) && pipeline.inputs.length === cfg.connected.length){
         cb()
       }
 
 
-      this.__pipeline.inputs[index].removeEvent('onClientConnect', _client_connect)
+      pipeline.inputs[index].removeEvent('onClientConnect', _client_connect)
     }.bind(this)
 
-    Array.each(this.__pipeline.inputs, function(input, index){
+    Array.each(pipeline.inputs, function(input, index){
       debug('__after_connect_inputs INPUT', input.conn_pollers)
       if(Object.getLength(input.conn_pollers) > 0 && Object.every(input.conn_pollers, function(poller, key){ return poller.connected })){
         debug('__after_connect_inputs ALREADY CONNECTED', index)
