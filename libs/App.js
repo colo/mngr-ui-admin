@@ -624,17 +624,40 @@ module.exports = new Class({
 
     return merged
   },
+  // add_response_event: function(resp_id, cb){
+  //   debug_internals('add_response_event', resp_id)
+  //   if(!this.__response_events[resp_id]){
+  //     this.__response_events[resp_id] = cb
+  //     this.addEvent(resp_id, cb)
+  //   }
+  //   else{
+  //     debug_internals('add_response_event DUPLICATED', this.__response_events)
+  //     // process.exit(1)
+  //   }
+  // },
   add_response_event: function(resp_id, cb){
     debug_internals('add_response_event', resp_id)
-    if(!this.__response_events[resp_id]){
-      this.__response_events[resp_id] = cb
-      this.addEvent(resp_id, cb)
-    }
+
+    if(!this.__response_events[resp_id]) this.__response_events[resp_id] = []
+    this.__response_events[resp_id].push(cb)
+    this.addEvent(resp_id, cb)
+
+
   },
+  // remove_response_event: function(resp_id){
+  //   debug_internals('remove_response_event', resp_id)
+  //   if(this.__response_events[resp_id] && typeof this.__response_events[resp_id] === 'function'){
+  //     this.removeEvent(resp_id, this.__response_events[resp_id])
+  //     delete this.__response_events[resp_id]
+  //   }
+  // },
   remove_response_event: function(resp_id){
     debug_internals('remove_response_event', resp_id)
-    if(this.__response_events[resp_id] && typeof this.__response_events[resp_id] === 'function'){
-      this.removeEvent(resp_id, this.__response_events[resp_id])
+    if(this.__response_events[resp_id] && this.__response_events[resp_id].length > 0){
+      Array.each(this.__response_events[resp_id], function(cb){
+        this.removeEvent(resp_id, cb)
+      }.bind(this))
+
       delete this.__response_events[resp_id]
     }
   },
@@ -649,7 +672,8 @@ module.exports = new Class({
     // let reg = new RegExp(id.replace('/', '\/'), 'g')
 
 
-    Object.each(__response_events, function(cb, resp_id){
+    // Object.each(__response_events, function(cb, resp_id){
+    Object.each(__response_events, function(events, resp_id){
       if(resp_id.indexOf(id) === 0)
         delete this.__response_events[resp_id]
     }.bind(this))
@@ -982,7 +1006,8 @@ module.exports = new Class({
       this.__pipeline.addEvent(this.__pipeline.ON_SAVE_DOC, function(doc){
         let {id, type} = doc
 
-        // debug_internals('onSaveDoc %o', doc)
+        debug_internals('onSaveDoc %o', doc)
+
         if(id)
           this.fireEvent(id, [undefined, doc])
 
@@ -1111,7 +1136,7 @@ module.exports = new Class({
           Array.each(pipeline.inputs, function(input, index){
             if(cfg.connected[index] !== true){
               __resume[index] = function(){
-                __resume_pipeline(pipeline, id)
+                this.__resume_pipeline(pipeline, id)
                 input.conn_pollers[0].removeEvent('onConnect', __resume[index])
               }.bind(this)
               input.conn_pollers[0].addEvent('onConnect', () => __resume[index])
