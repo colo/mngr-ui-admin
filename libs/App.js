@@ -1006,7 +1006,7 @@ module.exports = new Class({
       this.__pipeline.addEvent(this.__pipeline.ON_SAVE_DOC, function(doc){
         let {id, type} = doc
 
-        debug_internals('onSaveDoc %o', doc)
+        debug_internals('__pipeline onSaveDoc %o', doc)
 
         if(id)
           this.fireEvent(id, [undefined, doc])
@@ -1020,7 +1020,7 @@ module.exports = new Class({
       this.__pipeline.addEvent(this.__pipeline.ON_DOC_ERROR, function(err, resp){
         let {id, type} = resp
 
-        debug_internals('onDocError %o', err, resp)
+        debug_internals('__pipeline onDocError %o', err, resp)
         if(id)
           this.fireEvent(id, [err, resp])
 
@@ -1136,7 +1136,7 @@ module.exports = new Class({
           Array.each(pipeline.inputs, function(input, index){
             if(cfg.connected[index] !== true){
               __resume[index] = function(){
-                this.__resume_pipeline(pipeline, id)
+                this.__resume_pipeline(pipeline, cfg, id)
                 input.conn_pollers[0].removeEvent('onConnect', __resume[index])
               }.bind(this)
               input.conn_pollers[0].addEvent('onConnect', () => __resume[index])
