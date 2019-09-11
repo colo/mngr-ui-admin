@@ -1095,7 +1095,7 @@ module.exports = new Class({
 
       // cfg.connected.push(true)
       cfg.connected[index] = true
-      if(cfg.connected.every(function(input){ return input }) && pipeline.inputs.length === cfg.connected.length){
+      if(cfg.connected.every(function(input){ return input }) && pipeline.inputs.length === cfg.connected.length && cb && typeof cb === 'function'){
         cb()
       }
 
