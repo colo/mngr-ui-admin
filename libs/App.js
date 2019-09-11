@@ -254,7 +254,7 @@ module.exports = new Class({
 
 
   },
-  create_response_id: function(socket_or_req, resp_id){
+  create_response_id: function(socket_or_req, resp_id, no_index){
     if(typeof resp_id !== 'string')
       resp_id = uuidv5(JSON.stringify(resp_id), this.ID)
 
@@ -263,7 +263,7 @@ module.exports = new Class({
 
     let session = (socket_or_req.session) ? socket_or_req.session : socket_or_req.handshake.session
 
-    let isSocket = (socket_or_req.session) ? false : true
+    // let isSocket = (socket_or_req.session) ? false : true
 
     // session._resp = session._resp+1 || 0
     // let resp_id = id +'.'+session._resp
@@ -273,7 +273,8 @@ module.exports = new Class({
 
     let new_resp_id
 
-    if(isSocket){
+    // if(isSocket){
+    if(no_index === true){
       new_resp_id = id +'.'+ resp_id
     }
     else{
@@ -440,7 +441,7 @@ module.exports = new Class({
     // let format = (opts && opts.query) ? opts.query.format : undefined
 
     debug('generic_response', result.metadata)
-
+    // process.exit(1)
     // result.opts = opts
     result.metadata.opts = opts
 
