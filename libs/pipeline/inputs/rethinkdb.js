@@ -1256,13 +1256,15 @@ module.exports = new Class({
 
       if(!this.changes_buffer[uuid]){
         params._extras.changes = true
-        this.changes_buffer[uuid] = {resp: [], params: Object.clone(params)}
+        // this.changes_buffer[uuid] = {resp: [], params: Object.clone(params)}
+        this.changes_buffer[uuid] = {resp: {}, params: Object.clone(params)}
        }
 
       if(!this.changes_buffer_expire[uuid]) this.changes_buffer_expire[uuid] = Date.now()
 
 
       query
+        // .pluck(this.r.args('id'))
         // .group( this.r.row('metadata')('path') )
         // .ungroup()
         // .map(
@@ -1272,6 +1274,7 @@ module.exports = new Class({
         // )
         // .pluck({'new_val': this.r.args(req.query.q)})
         // .withFields({'new_val': ['data', 'metadata']})
+        // .run(this.conn, {maxBatchSeconds: 1, includeTypes: true}, function(err, cursor) {
         .run(this.conn, {maxBatchSeconds: 1, includeTypes: true}, function(err, cursor) {
 
         debug_internals('registered %o %o', err, cursor)
@@ -1306,20 +1309,27 @@ module.exports = new Class({
                 //   row.new_val.metadata.path
                 // )
 
-                this.changes_buffer[uuid].resp.push(row.new_val)
+                // this.changes_buffer[uuid].resp.push(row.new_val)
+                // debug_internals('changes %s %o', new Date(), row)
+                // process.exit(1)
+                let id = ( row.new_val && row.new_val.id ) ? row.new_val.id : uuidv5(JSON.stringify(row), this.ID)
+                this.changes_buffer[uuid].resp[id] = row.new_val
+                // debug_internals('changes %s %o', new Date(), row)
               }
 
-              if(this.changes_buffer_expire[uuid] < Date.now() - 900 && this.changes_buffer[uuid].resp.length > 0){
+              if(this.changes_buffer_expire[uuid] < Date.now() - 1001 && Object.getLength(this.changes_buffer[uuid].resp) > 0){
                 console.log('onPeriodicalDoc', this.changes_buffer[uuid].params, uuid)
 
                 // this.__process_changes(this.changes_buffer[uuid])
                 // params._extras.changes = true
-                this.process_default(err, this.changes_buffer[uuid].resp, this.changes_buffer[uuid].params)
+                // this.process_default(err, this.changes_buffer[uuid].resp, this.changes_buffer[uuid].params)
+                this.process_default(err, Object.values(this.changes_buffer[uuid].resp), this.changes_buffer[uuid].params)
 
                 // debug_internals('changes %s', new Date(), this.changes_buffer[uuid])
 
                 this.changes_buffer_expire[uuid] = Date.now()
-                this.changes_buffer[uuid].resp = []
+                // this.changes_buffer[uuid].resp = []
+                this.changes_buffer[uuid].resp = {}
 
 
               }
