@@ -124,7 +124,8 @@ module.exports = new Class({
               }
               else{
                 query = query
-                  .group( app.r.row('metadata')('path') )
+                  // .group( app.r.row('metadata')('path') )
+                  .group( {index:'path'} )
                   .ungroup()
                   .map(
                     function (doc) {
@@ -234,7 +235,8 @@ module.exports = new Class({
                 }
                 else if(req.query.register === 'periodical'){
                   query = query
-                    .group( app.r.row('metadata')('path') )
+                    // .group( app.r.row('metadata')('path') )
+                    .group( {index:'path'} )
                     .ungroup()
                     .map(
                       function (doc) {
@@ -587,7 +589,8 @@ module.exports = new Class({
                 }
                 else if(req.query.register === 'periodical'){
                   query = query
-                    .group( app.r.row('metadata')('path') )
+                    // .group( app.r.row('metadata')('path') )
+                    .group( {index:'path'} )
                     .ungroup()
                     .map(
                       function (doc) {
