@@ -18,7 +18,7 @@ const pluralize = require('pluralize')
 
 const uuidv5 = require('uuid/v5')
 
-let eachOf = require( 'async' ).eachOf
+const async = require('async')
 
 module.exports = new Class({
   Extends: App,
@@ -58,84 +58,123 @@ module.exports = new Class({
               // debug_internals('property', distinct_indexes);
 
               let from = req.from || app.options.table
+
+
+              let query = app.r
+                .db(app.options.db)
+                .table(from)
+
+              // query = (req.params.prop && req.params.value)
+              // ? query
+              //   .getAll(app.r.args(req.params.value) , {index: pluralize(req.params.prop, 1)})
+              // : query
+              if(req.params.prop && req.params.value){
+                if(!Array.isArray(req.params.value))
+                  try{
+                    req.params.value = JSON.parse(req.params.value)
+                  }
+                  catch(e){
+                    req.params.value = [req.params.value]
+                  }
+
+                query = query.getAll(app.r.args(req.params.value) , {index: pluralize(req.params.prop, 1)})
+              }
+
               /**
-              * test
+              * orderBy need to be called before filters (its order table), other trasnform like "slice" are run after "filters"
               **/
-              let tables = ['os', 'logs']
+              let transformation = (req.query && req.query.transformation) ? req.query.transformation : undefined
+              if(
+                transformation
+                && (transformation.orderBy
+                  || (Array.isArray(transformation) && transformation.some(function(trasnform){ return Object.keys(trasnform)[0] === 'orderBy'}))
+                )
+              ){
+                let orderBy = (transformation.orderBy) ? transformation.orderBy : transformation.filter(function(trasnform){ return Object.keys(trasnform)[0] === 'orderBy' })[0]//one orderBy
+                query = app.query_with_transformation(query, orderBy)
 
-              let result = {}
-              
-              eachOf(tables, function (from, key, callback) {
+                if(Array.isArray(transformation)){
+                  transformation = Array.clone(transformation)
+                  transformation.each(function(trasnform, index){
+                    if(Object.keys(trasnform)[0] === 'orderBy')
+                      transformation[index] = undefined
+                  })
 
-                let query = app.r
-                  .db(app.options.db)
-                  .table(from)
-
-                // query = (req.params.prop && req.params.value)
-                // ? query
-                //   .getAll(app.r.args(req.params.value) , {index: pluralize(req.params.prop, 1)})
-                // : query
-                if(req.params.prop && req.params.value){
-                  if(!Array.isArray(req.params.value))
-                    try{
-                      req.params.value = JSON.parse(req.params.value)
-                    }
-                    catch(e){
-                      req.params.value = [req.params.value]
-                    }
-
-                  query = query.getAll(app.r.args(req.params.value) , {index: pluralize(req.params.prop, 1)})
+                  transformation = transformation.clean()
                 }
 
-                if(req.query && req.query.transformation)
-                  query = app.query_with_transformation(query, req.query.transformation)
 
-                // debug('WITH PATH', req.params.path)
-                if(req.query && req.query.filter)
-                  query = app.query_with_filter(query, req.query.filter)
+              }
 
-                // query = (req.params.path)
-                // ? query
-                //   .filter( app.r.row('metadata')('path').eq(req.params.path) )
-                // : query
+              if(req.query && req.query.filter)
+                query = app.query_with_filter(query, req.query.filter)
 
-                if (req.query && req.query.aggregation && !req.query.q) {
-                  query =  this.result_with_aggregation(query, req.query.aggregation)
-                }
-                else{
-                  query = query
-                    .group( app.r.row('metadata')('path') )
-                    .ungroup()
-                    .map(
-                      function (doc) {
-                          return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
-                      }
-                  )
-                }
+              if(transformation)
+                query = app.query_with_transformation(query, transformation)
+              /**
+              * orderBy need to be called before filters (its order table), other trasnform like "slice" are run after "filters"
+              **/
 
-                query.run(app.conn, function(err, resp){
-                  debug_internals('run', err)//resp
-                  result[from] = resp
-                  // result.combine(resp)
-                  callback(err)
-                })
+              // debug('WITH PATH', req.params.path)
+              // query = (req.params.path)
+              // ? query
+              //   .filter( app.r.row('metadata')('path').eq(req.params.path) )
+              // : query
 
-              }, function (err) {
+              let _result_callback = function(err, resp){
+                debug_internals('run', err)//resp
                 app.process_default(
                   err,
-                  result,
+                  resp,
                   {
                     _extras: {
-                      from: tables,
+                      from: from,
                       type: (req.params && req.params.path) ? req.params.path : app.options.type,
                       id: req.id,
                       transformation: (req.query.transformation) ? req.query.transformation : undefined,
-                      aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+                      aggregation: (req.query.aggregation) ? req.query.aggregation : undefined,
+                      filter: (req.query.filter) ? req.query.filter : undefined
                       // prop: pluralize(index)
                     }
                   }
                 )
-              })
+              }
+
+              if (req.query && req.query.aggregation && !req.query.q) {
+                query =  this.result_with_aggregation(query, req.query.aggregation)
+
+                query.run(app.conn, {arrayLimit: 1000000}, _result_callback)
+              }
+              else{
+                if(req.query && req.query.q){
+                  query = query
+                    .group( app.r.row('metadata')('path') )
+                    // .group( {index:'path'} )
+                    .ungroup()
+                    .map(
+                      function (doc) {
+                        return app.build_default_query_result(doc, req.query)
+                      }
+                    )
+                    .run(app.conn, {arrayLimit: 1000000}, _result_callback)
+
+                }
+                else{
+                  app.build_default_result(query, _result_callback)
+                }
+
+
+                // query = query
+                //   .group( app.r.row('metadata')('path') )
+                //   // .group( {index:'path'} )
+                //   .ungroup()
+                //   .map(
+                //     function (doc) {
+                //         return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                //     }
+                //   )
+
+              }
 
 
 
@@ -149,6 +188,7 @@ module.exports = new Class({
 
             if(req.query.register || req.query.unregister){
               debug_internals('register', req);
+              // process.exit(1)
               req.params = req.params || {}
 
               let from = req.from || app.options.table
@@ -161,7 +201,8 @@ module.exports = new Class({
                   type: (req.params && req.params.path) ? req.params.path : app.options.type,
                   id: req.id,
                   transformation: (req.query.transformation) ? req.query.transformation : undefined,
-                  aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+                  aggregation: (req.query.aggregation) ? req.query.aggregation : undefined,
+                  filter: (req.query.filter) ? req.query.filter : undefined
                   // prop: pluralize(index)
                 }
               }
@@ -217,14 +258,33 @@ module.exports = new Class({
                   query =  this.result_with_aggregation(query, req.query.aggregation)
                 }
                 else if(req.query.register === 'periodical'){
-                  query = query
-                    .group( app.r.row('metadata')('path') )
-                    .ungroup()
-                    .map(
-                      function (doc) {
-                          return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
-                      }
-                  )
+                  // query = query
+                  //   .group( app.r.row('metadata')('path') )
+                  //   // .group( {index:'path'} )
+                  //   .ungroup()
+                  //   .map(
+                  //     function (doc) {
+                  //         return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                  //     }
+                  // )
+                  if(req.query && req.query.q){
+                    query = query
+                      .group( app.r.row('metadata')('path') )
+                      // .group( {index:'path'} )
+                      .ungroup()
+                      .map(
+                        function (doc) {
+                          return app.build_default_query_result(doc, req.query)
+                        }
+                      )
+
+
+                  }
+                  else{
+                    //Promise
+                    // process.exit(1)
+                    query = app.build_default_result(query)
+                  }
                 }
 
 
@@ -266,14 +326,36 @@ module.exports = new Class({
                   let {query, params} = periodical
                   debug_internals('periodical default %s %O', id, periodical);
                   // periodical_req.id = id
-                  query.run(app.conn, function(err, resp){
-                    debug_internals('periodical default run', err, resp)//resp
-                    app.process_default(
-                      err,
-                      resp,
-                      params
-                    )
-                  })
+                  if(query instanceof Promise){
+                    query.then(function(resp) {
+                      debug('periodical default result as Promise %o', resp)
+                      // process.exit(1)
+                      app.process_default(
+                        undefined,
+                        resp,
+                        params
+                      )
+                    }, function(err) {
+                      debug('periodical default ERRROR as Promise %o', err)
+                      // process.exit(1)
+                      app.process_default(
+                        err,
+                        undefined,
+                        params
+                      )
+                    })
+                  }
+                  else{
+                    query.run(app.conn, {arrayLimit: 1000000}, function(err, resp){
+                      debug_internals('periodical default run', err, resp)//resp
+                      app.process_default(
+                        err,
+                        resp,
+                        params
+                      )
+                    })
+                  }
+
                 }.bind(this))
               }.bind(this))
               // let from = req.from || app.FROM
@@ -311,7 +393,7 @@ module.exports = new Class({
               //   )
               // }
               //
-              // query.run(app.conn, function(err, resp){
+              // query.run(app.conn, {arrayLimit: 1000000}, function(err, resp){
               //   debug_internals('run', err)//resp
               //   app.process_default(
               //     err,
@@ -370,6 +452,7 @@ module.exports = new Class({
               ? [req.params.value, end]
               : end
 
+
               query = (req.params.path)
               ? query
                 .between(
@@ -386,12 +469,45 @@ module.exports = new Class({
                 )
 
 
+              /**
+              * orderBy need to be called before filters (its order table), other trasnform like "slice" are run after "filters"
+              **/
+              let transformation = (req.query && req.query.transformation) ? req.query.transformation : undefined
+              if(
+                transformation
+                && (transformation.orderBy
+                  || (Array.isArray(transformation) && transformation.some(function(trasnform){ return Object.keys(trasnform)[0] === 'orderBy'}))
+                )
+              ){
+                let orderBy = (transformation.orderBy) ? transformation.orderBy : transformation.filter(function(trasnform){ return Object.keys(trasnform)[0] === 'orderBy' })[0]//one orderBy
+                query = app.query_with_transformation(query, orderBy)
 
-              if(req.query && req.query.transformation)
-                query = app.query_with_transformation(query, req.query.transformation)
+                if(Array.isArray(transformation)){
+                  trasnformation = Array.clone(transformation)
+                  transformation.each(function(trasnform, index){
+                    if(Object.keys(trasnform)[0] === 'orderBy')
+                      transformation[index] = undefined
+                  })
+
+                  transformation = transformation.clean()
+                }
+
+
+              }
+
+              if(req.query && req.query.filter)
+                query = app.query_with_filter(query, req.query.filter)
+
+              if(transformation)
+                query = app.query_with_transformation(query, transformation)
+              /**
+              * orderBy need to be called before filters (its order table), other trasnform like "slice" are run after "filters"
+              **/
 
               if (req.query && req.query.aggregation && !req.query.q) {
                 query =  this.result_with_aggregation(query, req.query.aggregation)
+
+                // query.run(app.conn, {arrayLimit: 1000000}, _result_callback)
               }
               else{
                 query = query
@@ -399,12 +515,12 @@ module.exports = new Class({
                   .ungroup()
                   .map(
                     function (doc) {
-                        return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                      return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result_between(doc)
                     }
                 )
               }
 
-              query.run(app.conn, function(err, resp){
+              query.run(app.conn, {arrayLimit: 1000000}, function(err, resp){
                 debug_internals('run', err) //resp
                 app.process_default(
                   err,
@@ -417,7 +533,8 @@ module.exports = new Class({
                       Range: range,
                       range: req.opt.range,
                       transformation: (req.query.transformation) ? req.query.transformation : undefined,
-                      aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+                      aggregation: (req.query.aggregation) ? req.query.aggregation : undefined,
+                      filter: (req.query.filter) ? req.query.filter : undefined
                       // prop: pluralize(index)
                     }
                   }
@@ -469,7 +586,8 @@ module.exports = new Class({
                   Range: range,
                   range: req.opt.range,
                   transformation: (req.query.transformation) ? req.query.transformation : undefined,
-                  aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
+                  aggregation: (req.query.aggregation) ? req.query.aggregation : undefined,
+                  filter: (req.query.filter) ? req.query.filter : undefined
                   // prop: pluralize(index)
                 }
               }
@@ -538,10 +656,11 @@ module.exports = new Class({
                 else if(req.query.register === 'periodical'){
                   query = query
                     .group( app.r.row('metadata')('path') )
+                    // .group( {index:'path'} )
                     .ungroup()
                     .map(
                       function (doc) {
-                          return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                        return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result_between(doc)
                       }
                   )
                 }
@@ -630,6 +749,11 @@ module.exports = new Class({
         query = query.filter(eval("this."+filter))
         debug('query_with_filter STRING', filter, query)
       }
+      else if(Array.isArray(filter)){//allow chaining filters
+        Array.each(Array.clone(filter), function(_filter, index){
+          query = this.query_with_filter(query, _filter)
+        }.bind(this))
+      }
       else{
         // _query_filter = Object.keys(filter)[0]
         // _query_filter_value = filter[_query_filter]
@@ -705,7 +829,7 @@ module.exports = new Class({
         _query_transform_value = transformation.split(':').slice(1)
       }
       else if(Array.isArray(transformation)){//allow chaining transformations
-        Array.each(transformation, function(transform, index){
+        Array.each(Array.clone(transformation), function(transform, index){
           query = this.query_with_transformation(query, transform)
         }.bind(this))
       }
@@ -713,48 +837,61 @@ module.exports = new Class({
         _query_transform = Object.keys(transformation)[0]
         _query_transform_value = transformation[_query_transform]
       }
-      switch(_query_transform){
-        case 'sample':
-          query = query.sample(_query_transform_value[0] * 1)
-          break;
 
-        case 'limit':
-          query = query.limit(_query_transform_value[0] * 1)
-          break;
+      if(_query_transform){
+        debug('query_with_transformation %o %o', _query_transform, _query_transform_value)
 
-        case 'skip':
-          query = query.skip(_query_transform_value[0] * 1)
-          break;
+        switch(_query_transform){
+          case 'sample':
+            query = query.sample(_query_transform_value * 1)
+            break;
 
-        case 'slice':
-          query = query.slice(_query_transform_value[0] * 1, _query_transform_value[1] * 1, _query_transform_value[2])
-          break;
+          case 'limit':
+            query = query.limit(_query_transform_value * 1)
+            break;
 
-        case 'orderBy':
-          // query = query.orderBy(eval(_query_transform_value))
-          let value = (_query_transform_value.index) ? _query_transform_value.index : _query_transform_value
+          /**
+          * don't use nth, use slice instead (produce an error, because query end up needing a sequence after this)
+          **/
+          case 'nth':
+            query = query.nth(_query_transform_value * 1)
+            break;
 
-          if(value && value.indexOf('(') > -1){
-            value = value.replace('r.', '')
-            value = value.replace(')', '')
-            debug('orderBy ', value)
-            let order = value.substring(0, value.indexOf('('))
-            let index = value.substring(value.indexOf('(') + 1)
-            debug('orderBy ',order, index)
+          case 'skip':
+            query = query.skip(_query_transform_value * 1)
+            break;
 
-            if(_query_transform_value.index)
-              _query_transform_value.index = this.r[order](index)
-            else
-              _query_transform_value = this.r[order](index)
-          }
+          case 'slice':
+            query = query.slice(_query_transform_value[0] * 1, _query_transform_value[1] * 1, _query_transform_value[2])
+            break;
+
+          case 'orderBy':
+            // query = query.orderBy(eval(_query_transform_value))
+            let value = (_query_transform_value.index) ? _query_transform_value.index : _query_transform_value
+
+            if(value && value.indexOf('(') > -1){
+              value = value.replace('r.', '')
+              value = value.replace(')', '')
+              debug('orderBy ', value)
+              let order = value.substring(0, value.indexOf('('))
+              let index = value.substring(value.indexOf('(') + 1)
+              debug('orderBy ',order, index)
+
+              if(_query_transform_value.index)
+                _query_transform_value.index = this.r[order](index)
+              else
+                _query_transform_value = this.r[order](index)
+            }
 
 
 
-          query = query.orderBy(_query_transform_value)
-          break;
+            query = query.orderBy(_query_transform_value)
+            break;
+        }
       }
     }
 
+    debug('query_with_transformation %o', query)
     return query
   },
   result_with_aggregation: function(query, aggregation){
@@ -855,7 +992,222 @@ module.exports = new Class({
 
     return query
   },
-  build_default_result: function(doc){
+
+  build_default_result: function(query, callback){
+    let _groups = {}
+    // let groups = []
+
+    let _path_query = query.distinct({index: 'path'}).coerceTo('array')
+
+    let self = this
+
+    if(!callback){
+      return new Promise(function(resolve, reject) {
+        _path_query.run(self.conn, {arrayLimit: 1000000}, function(err, paths){
+          debug('build_default_result PATHS %o %o', err, paths)
+
+          if(err) reject(err)
+
+          if(!Array.isArray(paths) || paths.length === 0){
+            resolve(_groups)
+          }
+          else{
+            // let group = {}
+            async.eachOf(paths, function (path, index, _async_callback) {
+              if(!_groups[path]) _groups[path] = {}
+
+              _groups[path].path = path
+
+              //COUNT
+              self._build_default_result_count(query, path, function(err, resp){
+                if(err) _async_callback(err)
+
+                _groups[path].count = resp
+                debug('_build_default_result_count %o', _groups[path])
+
+                //HOSTS
+                self._build_default_result_hosts(query, path, function(err, resp){
+                  if(err) _async_callback(err)
+
+                  _groups[path].hosts = resp
+                  debug('_build_default_result_hosts %o', _groups[path])
+
+                  //TAGS
+                  self._build_default_result_tags(query, path, function(err, resp){
+                    if(err) _async_callback(err)
+
+                    _groups[path].tags = resp
+                    debug('_build_default_result_tags %o', _groups[path])
+
+                    //RANGE
+                    self._build_default_result_range(query, path, function(err, resp){
+                      if(err) _async_callback(err)
+
+                      _groups[path].range = resp
+                      debug('_build_default_result_range %o', _groups[path])
+
+                      //TYPES
+                      self._build_default_result_types(query, path, function(err, resp){
+                        if(err) _async_callback(err)
+
+                        _groups[path].types = resp
+                        debug('_build_default_result_types %o', _groups[path])
+
+                        // process.exit(1)
+                        // _groups[path].push(_groups[path])
+                        _async_callback()
+                      })
+
+                    })
+
+                  })
+
+                })
+
+              })
+            }, function (err) {
+              debug('build_default_result ERR %o', err)
+              if(err){
+                reject(err)
+              }
+              else{
+                resolve(Object.values(_groups))
+              }
+            // process.exit(1)
+            })
+          }
+
+
+          // })
+          // process.exit(1)
+        })
+
+      })
+    }
+    else {
+      _path_query.run(this.conn, {arrayLimit: 1000000}, function(err, paths){
+        debug('build_default_result PATHS %o %o', err, paths)
+
+        if(err) callback(err, Object.values(_groups))
+
+        if(!Array.isArray(paths) || paths.length === 0){
+          callback(err, _groups)
+        }
+        else{
+          // let group = {}
+          async.eachOf(paths, function (path, index, _async_callback) {
+            if(!_groups[path]) _groups[path] = {}
+
+            _groups[path].path = path
+
+            //COUNT
+            self._build_default_result_count(query, path, function(err, resp){
+              if(err) _async_callback(err)
+
+              _groups[path].count = resp
+              debug('_build_default_result_count %o', _groups[path])
+
+              //HOSTS
+              self._build_default_result_hosts(query, path, function(err, resp){
+                if(err) _async_callback(err)
+
+                _groups[path].hosts = resp
+                debug('_build_default_result_hosts %o', _groups[path])
+
+                //TAGS
+                self._build_default_result_tags(query, path, function(err, resp){
+                  if(err) _async_callback(err)
+
+                  _groups[path].tags = resp
+                  debug('_build_default_result_tags %o', _groups[path])
+
+                  //RANGE
+                  self._build_default_result_range(query, path, function(err, resp){
+                    if(err) _async_callback(err)
+
+                    _groups[path].range = resp
+                    debug('_build_default_result_range %o', _groups[path])
+
+                    //TYPES
+                    self._build_default_result_types(query, path, function(err, resp){
+                      if(err) _async_callback(err)
+
+                      _groups[path].types = resp
+                      debug('_build_default_result_types %o', _groups[path])
+
+                      // process.exit(1)
+                      // groups.push(group)
+                      _async_callback()
+                    })
+
+                  })
+
+                })
+
+              })
+
+            })
+          }, function (err) {
+            debug('build_default_result ERR %o', err)
+
+            callback(err, Object.values(_groups))
+          // process.exit(1)
+          })
+        }
+
+
+        // })
+        // process.exit(1)
+      })
+    }
+
+
+
+  },
+  _build_default_result_count: function(query, path, callback){
+    let _count_query = query.getAll(path, {index: 'path'}).count()
+    _count_query.run(this.conn, {arrayLimit: 1000000}, callback)
+  },
+  _build_default_result_hosts: function(query, path, callback){
+    let _hosts_query = query.getAll(path, {index: 'path'})('metadata')('host').distinct().coerceTo('array')
+    _hosts_query.run(this.conn, {arrayLimit: 1000000}, callback)
+  },
+  _build_default_result_tags: function(query, path, callback){
+    let _tags_query = query.getAll(path, {index: 'path'})('metadata')('tag').distinct().coerceTo('array')
+    _tags_query.run(this.conn, {arrayLimit: 1000000}, function(err, resp){
+      let tags = []
+      if(Array.isArray(resp)){
+        Array.each(resp, function(_tags){
+          tags.combine(_tags)
+        })
+
+      }
+
+      callback(err, tags)
+
+    })
+  },
+  _build_default_result_range: function(query, path, callback){
+    let range = []
+    let self = this
+    let _range_query_min = query.getAll(path, {index: 'path'})('metadata')('timestamp').min()
+    _range_query_min.run(this.conn, {arrayLimit: 1000000}, function(err, resp){
+      range[0] = resp
+
+      let _range_query_max = query.getAll(path, {index: 'path'})('metadata')('timestamp').max()
+      _range_query_max.run(self.conn, {arrayLimit: 1000000}, function(err, resp){
+        range[1] = resp
+        callback(err, range)
+      })
+
+
+    })
+  },
+  _build_default_result_types: function(query, path, callback){
+    let _types_query = query.getAll(path, {index: 'path'})('metadata')('type').distinct().coerceTo('array')
+    _types_query.run(this.conn, {arrayLimit: 1000000}, callback)
+  },
+  build_default_result_between: function(doc){
     let self = this
     return {
       path: doc('group'),
@@ -916,30 +1268,7 @@ module.exports = new Class({
 
     }
 
-    // if(typeof query.q === 'string'){
-    //   if(query.fields){
-    //
-    //     try{
-    //       query.fields = JSON.parse(query.fields)
-    //     }
-    //     catch(e){
-    //
-    //     }
-    //     query_with_fields[query.q] = query.fields
-    //   }
-    //
-    //   debug_internals('build_default_query_result %o', query, query_with_fields)
-    //
-    //   r_query = (query.fields)
-    //   ? r_query.withFields(query_with_fields)(query.q)
-    //   : r_query.withFields(query.q)(query.q)
-    //
-    //   _return_obj[query.q] = r_query
-    // }
-    // else{
-    //   // _return_obj['docs'] = r_query.pluck(this.r.args(query.q))
-    //   _return_obj = r_query.pluck(this.r.args(query.q))
-    // }
+
     if(typeof query.q === 'string'){
       if(query.aggregation){
         _return_obj[query.q] = this.result_with_aggregation(this.build_query_fields(r_query, query), query.aggregation)
@@ -1000,7 +1329,7 @@ module.exports = new Class({
   },
   process_default: function(err, resp, params){
     params = (params) ? Object.clone(params) : {}
-    debug_internals('process_default', err, resp, params)
+    debug_internals('process_default', err, params)
 
     let metadata = params._extras
     metadata.timestamp = Date.now()
@@ -1054,8 +1383,13 @@ module.exports = new Class({
   },
   __clean_registered_id: function(uuid, id, all_matching){
     debug_internals('__clean_registered_id uuid %s', uuid, id,all_matching)
+    // debug_internals('register %O', this.registered_ids)
+    // if(Object.getLength(this.registered_ids) > 0)
+      // process.exit(1)
+
 
     if(this.registered_ids[uuid]){
+
       if(all_matching){
 
         let _registered_ids = Array.clone(this.registered_ids[uuid])
@@ -1104,12 +1438,23 @@ module.exports = new Class({
   unregister: function(req, params){
     req = Object.clone(req)
     params = Object.clone(params)
-    debug_internals('UNregister %O', req)
+    debug_internals('UNregister %o', req, this.registered_ids)
+    // if(Object.getLength(this.registered_ids) > 0)
+    //   process.exit(1)
+
     let {id} = req
     delete req.id
 
     if(req.query.unregister === true || req.query.unregister === '*'){
+
+
       let _registered_ids= Object.clone(this.registered_ids)
+
+      // if(Object.getLegth(_registered_ids) > 0){
+        // debug_internals('UNregister %O', this.registered_ids)
+        // process.exit(1)
+      // }
+
       Object.each(_registered_ids, function(ids, uuid){
         this.__clean_registered_id(uuid, id, true)
         // if(ids.contains(id)) this.registered_ids[uuid] = this.registered_ids[uuid].erase(id)
@@ -1160,6 +1505,7 @@ module.exports = new Class({
       if(!this.periodicals[uuid]) this.periodicals[uuid] = {}
       this.periodicals[uuid][id] = {query, params}
       // this.periodicals[uuid].push({query, params})
+
     }
     else if(req.query.register === 'changes' && !this.feeds[uuid]){
       debug_internals('register FUNC %O %O ', req, params)//query,
@@ -1171,13 +1517,15 @@ module.exports = new Class({
 
       if(!this.changes_buffer[uuid]){
         params._extras.changes = true
-        this.changes_buffer[uuid] = {resp: [], params: Object.clone(params)}
+        // this.changes_buffer[uuid] = {resp: [], params: Object.clone(params)}
+        this.changes_buffer[uuid] = {resp: {}, params: Object.clone(params)}
        }
 
       if(!this.changes_buffer_expire[uuid]) this.changes_buffer_expire[uuid] = Date.now()
 
 
       query
+        // .pluck(this.r.args('id'))
         // .group( this.r.row('metadata')('path') )
         // .ungroup()
         // .map(
@@ -1187,6 +1535,7 @@ module.exports = new Class({
         // )
         // .pluck({'new_val': this.r.args(req.query.q)})
         // .withFields({'new_val': ['data', 'metadata']})
+        // .run(this.conn, {maxBatchSeconds: 1, includeTypes: true}, function(err, cursor) {
         .run(this.conn, {maxBatchSeconds: 1, includeTypes: true}, function(err, cursor) {
 
         debug_internals('registered %o %o', err, cursor)
@@ -1221,20 +1570,27 @@ module.exports = new Class({
                 //   row.new_val.metadata.path
                 // )
 
-                this.changes_buffer[uuid].resp.push(row.new_val)
+                // this.changes_buffer[uuid].resp.push(row.new_val)
+                // debug_internals('changes %s %o', new Date(), row)
+                // process.exit(1)
+                let id = ( row.new_val && row.new_val.id ) ? row.new_val.id : uuidv5(JSON.stringify(row), this.ID)
+                this.changes_buffer[uuid].resp[id] = row.new_val
+                // debug_internals('changes %s %o', new Date(), row)
               }
 
-              if(this.changes_buffer_expire[uuid] < Date.now() - 900 && this.changes_buffer[uuid].resp.length > 0){
+              if(this.changes_buffer_expire[uuid] < Date.now() - 1001 && Object.getLength(this.changes_buffer[uuid].resp) > 0){
                 console.log('onPeriodicalDoc', this.changes_buffer[uuid].params, uuid)
 
                 // this.__process_changes(this.changes_buffer[uuid])
                 // params._extras.changes = true
-                this.process_default(err, this.changes_buffer[uuid].resp, this.changes_buffer[uuid].params)
+                // this.process_default(err, this.changes_buffer[uuid].resp, this.changes_buffer[uuid].params)
+                this.process_default(err, Object.values(this.changes_buffer[uuid].resp), this.changes_buffer[uuid].params)
 
                 // debug_internals('changes %s', new Date(), this.changes_buffer[uuid])
 
                 this.changes_buffer_expire[uuid] = Date.now()
-                this.changes_buffer[uuid].resp = []
+                // this.changes_buffer[uuid].resp = []
+                this.changes_buffer[uuid].resp = {}
 
 
               }

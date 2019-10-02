@@ -22,6 +22,7 @@
     "helmet": "^3.9.0",
     "js-caching": "git+https://github.com/colo/js-caching.git",
     "js-pipeline": "git+https://github.com/colo/js-pipeline.git",
+    "js-pipeline.inputs.rethinkdb-rest": "git+https://github.com/colo/js-pipeline.inputs.rethinkdb-rest.git",
     "memorystore": "^1.5.1",
     "mngr-ui-admin-charts": "git+https://github.com/colo/mngr-ui-admin-charts.git",
     "mootools": "^1.5.2",
