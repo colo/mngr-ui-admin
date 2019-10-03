@@ -128,26 +128,25 @@ module.exports = new Class({
               if (req.query && req.query.aggregation && !req.query.q) {
                 query =  this.result_with_aggregation(query, req.query.aggregation)
 
-                query.run(app.conn, {arrayLimit: 10000000}, _result_callback)
+                query.run(app.conn, {arrayLimit: 1000000}, _result_callback)
               }
               else{
-                // if(req.query && req.query.q){
+                if(req.query && req.query.q){
                   query = query
                     .group( app.r.row('metadata')('path') )
                     // .group( {index:'path'} )
                     .ungroup()
                     .map(
                       function (doc) {
-                        // return app.build_default_query_result(doc, req.query)
-                        return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                        return app.build_default_query_result(doc, req.query)
                       }
                     )
-                    .run(app.conn, {arrayLimit: 10000000}, _result_callback)
+                    .run(app.conn, {arrayLimit: 1000000}, _result_callback)
 
-                // }
-                // else{
-                //   app.build_default_result(query, _result_callback)
-                // }
+                }
+                else{
+                  app.build_default_result(query, _result_callback)
+                }
 
 
                 // query = query
@@ -244,33 +243,33 @@ module.exports = new Class({
                   query =  this.result_with_aggregation(query, req.query.aggregation)
                 }
                 else if(req.query.register === 'periodical'){
-                  query = query
-                    .group( app.r.row('metadata')('path') )
-                    // .group( {index:'path'} )
-                    .ungroup()
-                    .map(
-                      function (doc) {
-                          return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
-                      }
-                  )
-                  // if(req.query && req.query.q){
-                  //   query = query
-                  //     .group( app.r.row('metadata')('path') )
-                  //     // .group( {index:'path'} )
-                  //     .ungroup()
-                  //     .map(
-                  //       function (doc) {
-                  //         return app.build_default_query_result(doc, req.query)
-                  //       }
-                  //     )
-                  //
-                  //
-                  // }
-                  // else{
-                  //   //Promise
-                  //   // process.exit(1)
-                  //   query = app.build_default_result(query)
-                  // }
+                  // query = query
+                  //   .group( app.r.row('metadata')('path') )
+                  //   // .group( {index:'path'} )
+                  //   .ungroup()
+                  //   .map(
+                  //     function (doc) {
+                  //         return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                  //     }
+                  // )
+                  if(req.query && req.query.q){
+                    query = query
+                      .group( app.r.row('metadata')('path') )
+                      // .group( {index:'path'} )
+                      .ungroup()
+                      .map(
+                        function (doc) {
+                          return app.build_default_query_result(doc, req.query)
+                        }
+                      )
+
+
+                  }
+                  else{
+                    //Promise
+                    // process.exit(1)
+                    query = app.build_default_result(query)
+                  }
                 }
 
 
@@ -312,27 +311,27 @@ module.exports = new Class({
                   let {query, params} = periodical
                   debug_internals('periodical default %s %O', id, periodical);
                   // periodical_req.id = id
-                  // if(query instanceof Promise){
-                  //   query.then(function(resp) {
-                  //     debug('periodical default result as Promise %o', resp)
-                  //     // process.exit(1)
-                  //     app.process_default(
-                  //       undefined,
-                  //       resp,
-                  //       params
-                  //     )
-                  //   }, function(err) {
-                  //     debug('periodical default ERRROR as Promise %o', err)
-                  //     // process.exit(1)
-                  //     app.process_default(
-                  //       err,
-                  //       undefined,
-                  //       params
-                  //     )
-                  //   })
-                  // }
-                  // else{
-                    query.run(app.conn, {arrayLimit: 10000000}, function(err, resp){
+                  if(query instanceof Promise){
+                    query.then(function(resp) {
+                      debug('periodical default result as Promise %o', resp)
+                      // process.exit(1)
+                      app.process_default(
+                        undefined,
+                        resp,
+                        params
+                      )
+                    }, function(err) {
+                      debug('periodical default ERRROR as Promise %o', err)
+                      // process.exit(1)
+                      app.process_default(
+                        err,
+                        undefined,
+                        params
+                      )
+                    })
+                  }
+                  else{
+                    query.run(app.conn, {arrayLimit: 1000000}, function(err, resp){
                       debug_internals('periodical default run', err, resp)//resp
                       app.process_default(
                         err,
@@ -340,7 +339,7 @@ module.exports = new Class({
                         params
                       )
                     })
-                  // }
+                  }
 
                 }.bind(this))
               }.bind(this))
@@ -379,7 +378,7 @@ module.exports = new Class({
               //   )
               // }
               //
-              // query.run(app.conn, {arrayLimit: 10000000}, function(err, resp){
+              // query.run(app.conn, {arrayLimit: 1000000}, function(err, resp){
               //   debug_internals('run', err)//resp
               //   app.process_default(
               //     err,
@@ -493,7 +492,7 @@ module.exports = new Class({
               if (req.query && req.query.aggregation && !req.query.q) {
                 query =  this.result_with_aggregation(query, req.query.aggregation)
 
-                // query.run(app.conn, {arrayLimit: 10000000}, _result_callback)
+                // query.run(app.conn, {arrayLimit: 1000000}, _result_callback)
               }
               else{
                 query = query
@@ -501,13 +500,12 @@ module.exports = new Class({
                   .ungroup()
                   .map(
                     function (doc) {
-                      // return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result_between(doc)
-                      return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                      return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result_between(doc)
                     }
                 )
               }
 
-              query.run(app.conn, {arrayLimit: 10000000}, function(err, resp){
+              query.run(app.conn, {arrayLimit: 1000000}, function(err, resp){
                 debug_internals('run', err) //resp
                 app.process_default(
                   err,
@@ -647,8 +645,7 @@ module.exports = new Class({
                     .ungroup()
                     .map(
                       function (doc) {
-                        // return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result_between(doc)
-                        return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                        return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result_between(doc)
                       }
                   )
                 }
