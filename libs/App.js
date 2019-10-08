@@ -348,6 +348,7 @@ module.exports = new Class({
 
   data_formater: function(data, format, cb){
     debug('data_formater FUNC %s %o', format, data)
+    // process.exit(1)
     if(format && (data.length > 0 || Object.getLength(data) > 0)){
 
       if(format === 'merged'){
@@ -370,17 +371,19 @@ module.exports = new Class({
         data = (!Array.isArray(data)) ? [data] : data
 
         debug('FORMAT %o', data)
-        // process.extit(1)
+        // process.exit(1)
         // let stat_counter = 0
         // let not_equal_length = true
 
-        let transformed = []
+        let transformed = {}
 
         eachOf(data, function (value, key, callback) {
+          key = (value[0] && value[0].metadata && value[0].metadata.path) ? value[0].metadata.path : key
           let stat = {}
           stat['data'] = value
           this.__transform_data('stat', '', stat, this.ID, function(value){
-            transformed[key] = (value && value.stat) ? value.stat : undefined
+            // transformed[key] = (value && value.stat) ? value.stat : undefined
+            transformed[key] = (value && value.stat && value.stat.data) ? value.stat.data : undefined
             callback()
           })
         }.bind(this), function (err) {
@@ -390,20 +393,21 @@ module.exports = new Class({
           debug('FORMAT trasnformed %O', transformed)
           // process.exit(1)
           // if( format == 'tabular' && !err && value.stat['data'] && (value.stat['data'].length > 0 || Object.getLength(value.stat['data']) > 0)){
-          if( format == 'tabular' && data.length > 0){
-            let transformed = []
+          // if( format == 'tabular' && data.length > 0){
+          if( format == 'tabular' && Object.getLength(data) > 0){
+            // let transformed = []
+            let transformed = {}
 
-            // this.__async_result_data_to_tabular(data,)
-
-            // if(resp){
-            //   resp.status(status).json(result)
-            // }
-            // else{
-            //   socket.emit(input, result)
-            // }
             eachOf(data, function (value, key, callback) {
-              if(value && value.data && (value.data.length > 0 || Object.getLength(value.data))){
-                this.__transform_data('tabular', 'data', value.data, this.id, function(value){
+              // debug_internals(': __transform_data tabular -> %o %s', value, key) //result
+              // process.exit(1)
+              // if(value && value.data && (value.data.length > 0 || Object.getLength(value.data))){
+              if(value && (value.length > 0 || Object.getLength(value))){
+                // let stat = {}
+                // stat['data'] = value
+
+                // this.__transform_data('tabular', 'data', value.data, this.id, function(value){
+                this.__transform_data('tabular', 'data', value, this.id, function(value){
                   debug_internals(': __transform_data tabular -> %o', value) //result
                   transformed[key] = value
                   callback()
