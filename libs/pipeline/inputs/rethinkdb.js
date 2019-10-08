@@ -35,7 +35,7 @@ module.exports = new Class({
             req = (req) ? Object.clone(req) : {}
             if(!req.query || (!req.query.register && !req.query.unregister)){
               debug_internals('default %o %o', req, req.params.value);
-
+              // process.exit(1)
               // let distinct_indexes = (req.params && req.params.prop ) ? pluralize(req.params.prop, 1) : app.distinct_indexes
               // if(!Array.isArray(distinct_indexes))
               //   distinct_indexes = [distinct_indexes]
@@ -133,7 +133,7 @@ module.exports = new Class({
               else{
                 if(req.query && req.query.q){
                   query = query
-                    .group( app.r.row('metadata')('path') )
+                    .group( app.get_group(req.query.index) )
                     // .group( {index:'path'} )
                     .ungroup()
                     .map(
@@ -146,7 +146,7 @@ module.exports = new Class({
 
                 }
                 else{
-                  app.build_default_result_distinct(query, _result_callback)
+                  app.build_default_result_distinct(query, app.get_distinct(req.query.index), _result_callback)
                 }
 
 
@@ -255,7 +255,7 @@ module.exports = new Class({
                   // )
                   if(req.query && req.query.q){
                     query = query
-                      .group( app.r.row('metadata')('path') )
+                      .group( app.get_group(req.query.index) )
                       // .group( {index:'path'} )
                       .ungroup()
                       .map(
@@ -269,7 +269,7 @@ module.exports = new Class({
                   else{
                     //Promise
                     // process.exit(1)
-                    query = app.build_default_result_distinct(query)
+                    query = app.build_default_result_distinct(query,  app.get_distinct(req.query.index))
                   }
                 }
 
@@ -497,12 +497,12 @@ module.exports = new Class({
               }
               else{
                 query = query
-                  .group(app.r.row('metadata')('path'))
+                  .group(app.get_group(req.query.index))
                   .ungroup()
                   .map(
                     function (doc) {
                       // return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result_between(doc)
-                      return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                      return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc, (req.query.index) ? req.query.index : 'path')
                     }
                 )
               }
@@ -642,13 +642,13 @@ module.exports = new Class({
                 }
                 else if(req.query.register === 'periodical'){
                   query = query
-                    .group( app.r.row('metadata')('path') )
+                    .group( app.get_group(req.query.index) )
                     // .group( {index:'path'} )
                     .ungroup()
                     .map(
                       function (doc) {
                         // return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result_between(doc)
-                        return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                        return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc, (req.query.index) ? req.query.index : 'path')
                       }
                   )
                 }
