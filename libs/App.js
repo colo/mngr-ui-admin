@@ -349,7 +349,7 @@ module.exports = new Class({
   data_formater: function(data, format, cb){
     debug('data_formater FUNC %s %o', format, data)
     // process.exit(1)
-    if(format && (data.length > 0 || Object.getLength(data) > 0)){
+    if(format && data && (data.length > 0 || Object.getLength(data) > 0)){
 
       if(format === 'merged'){
         if(Array.isArray(data) && Array.isArray(data[0])){//array of array
