@@ -841,11 +841,14 @@ module.exports = new Class({
             _arr_resp = [_arr_resp]
 
           Array.each(_arr_resp, function(data, index){
-            Object.each(data, function(value, key){
-              debug_internals('_get_resp delete key %s %s', key, params)
-              if(params && key !== params.prop)
-                delete data[key]
-            })
+            if(data){
+              Object.each(data, function(value, key){
+                debug_internals('_get_resp delete key %s %s', key, params)
+                if(params && key !== params.prop)
+                  delete data[key]
+              })
+            }
+
           })
 
           // if(!Array.isArray(resp['data'])){
