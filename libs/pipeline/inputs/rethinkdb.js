@@ -662,12 +662,12 @@ module.exports = new Class({
                 if (req.query.register === 'periodical' && req.query.aggregation && !req.query.q) {
                   query =  this.result_with_aggregation(query, req.query.aggregation)
                 }
-                else if(req.query.register === 'periodical' && req.query.index === false){
+                else if(req.query.index === false){
                   query = app.build_query_fields(query, req.query)
 
-                  // debug('NO INDEX %o', query)
-                  //
-                  // query.run(app.conn, {arrayLimit: 10000000}, _result_callback)
+                  debug('NO INDEX %o', query)
+
+                  query.run(app.conn, {arrayLimit: 10000000}, _result_callback)
 
                 }
                 else if(req.query.register === 'periodical'){
