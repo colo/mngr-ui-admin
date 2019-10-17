@@ -667,7 +667,7 @@ module.exports = new Class({
 
                   debug('NO INDEX %o', query)
 
-                  query.run(app.conn, {arrayLimit: 10000000}, _result_callback)
+                  // query.run(app.conn, {arrayLimit: 10000000}, _result_callback)
 
                 }
                 else if(req.query.register === 'periodical'){
