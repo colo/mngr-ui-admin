@@ -139,15 +139,16 @@ module.exports = new Class({
 
               }
               else{
-                if(req.query && req.query.q){
+                if(req.query && (req.query.q || req.query.filter)){
                   query = query
                     .group( app.get_group(req.query.index) )
                     // .group( {index:'path'} )
                     .ungroup()
                     .map(
                       function (doc) {
-                        return app.build_default_query_result(doc, req.query)
-                        // return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
+                        debug('DOC %o', doc)
+                        // return app.build_default_query_result(doc, req.query)
+                        return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
                       }
                     )
                     .run(app.conn, {arrayLimit: 10000000}, _result_callback)
@@ -258,31 +259,40 @@ module.exports = new Class({
 
                 }
                 else if(req.query.register === 'periodical'){
-                  // query = query
-                  //   .group( app.r.row('metadata')('path') )
-                  //   // .group( {index:'path'} )
-                  //   .ungroup()
-                  //   .map(
-                  //     function (doc) {
-                  //         return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
-                  //     }
-                  // )
-                  if(req.query && req.query.q){
+                  // if(req.query && req.query.q){
+                  //   query = query
+                  //     .group( app.get_group(req.query.index) )
+                  //     // .group( {index:'path'} )
+                  //     .ungroup()
+                  //     .map(
+                  //       function (doc) {
+                  //         return app.build_default_query_result(doc, req.query)
+                  //       }
+                  //     )
+                  //
+                  //
+                  // }
+                  // else{
+                  //   //Promise
+                  //   // process.exit(1)
+                  //   query = app.build_default_result_distinct(query,  app.get_distinct(req.query.index))
+                  // }
+                  if(req.query && (req.query.q || req.query.filter)){
                     query = query
                       .group( app.get_group(req.query.index) )
                       // .group( {index:'path'} )
                       .ungroup()
                       .map(
                         function (doc) {
-                          return app.build_default_query_result(doc, req.query)
+                          // debug('DOC %o', doc)
+                          // return app.build_default_query_result(doc, req.query)
+                          return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
                         }
                       )
 
 
                   }
                   else{
-                    //Promise
-                    // process.exit(1)
                     query = app.build_default_result_distinct(query,  app.get_distinct(req.query.index))
                   }
                 }
@@ -358,58 +368,7 @@ module.exports = new Class({
 
                 }.bind(this))
               }.bind(this))
-              // let from = req.from || app.FROM
-              // from = (from === 'minute' || from === 'hour') ? 'historical' : from
-              //
-              // let query = app.r
-              //   .db(app.options.db)
-              //   .table(from)
-              //
-              // query = (req.params.prop && req.params.value)
-              // ? query
-              //   .getAll(req.params.value , {index: pluralize(req.params.prop, 1)})
-              // : query
-              //
-              //
-              // if(req.query && req.query.transformation)
-              //   query = app.query_with_transformation(query, req.query.transformation)
-              //
-              // query = (req.params.path)
-              // ? query
-              //   .filter( app.r.row('metadata')('path').eq(req.params.path) )
-              // : query
-              //
-              // if (req.query && req.query.aggregation && !req.query.q) {
-              //   query =  this.result_with_aggregation(query, req.query.aggregation)
-              // }
-              // else{
-              //   query = query
-              //     .group( app.r.row('metadata')('path') )
-              //     .ungroup()
-              //     .map(
-              //       function (doc) {
-              //           return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc)
-              //       }
-              //   )
-              // }
-              //
-              // query.run(app.conn, {arrayLimit: 10000000}, function(err, resp){
-              //   debug_internals('run', err)//resp
-              //   app.process_default(
-              //     err,
-              //     resp,
-              //     {
-              //       _extras: {
-              //         from: from,
-              //         type: (req.params && req.params.path) ? req.params.path : app.options.type,
-              //         id: req.id,
-              //         transformation: (req.query.transformation) ? req.query.transformation : undefined,
-              //         aggregation: (req.query.aggregation) ? req.query.aggregation : undefined
-              //         // prop: pluralize(index)
-              //       }
-              //     }
-              //   )
-              // })
+
 
             } //req.query.register === false
 					}
@@ -506,15 +465,9 @@ module.exports = new Class({
 
               if (req.query && req.query.aggregation && !req.query.q) {
                 query =  this.result_with_aggregation(query, req.query.aggregation)
-
-                // query.run(app.conn, {arrayLimit: 10000000}, _result_callback)
               }
               else if(req.query.index === false){
                 query = app.build_query_fields(query, req.query)
-
-                // debug('NO INDEX %o', query)
-                //
-                // query.run(app.conn, {arrayLimit: 10000000}, _result_callback)
 
               }
               else{
@@ -527,6 +480,7 @@ module.exports = new Class({
                       return (req.query && req.query.q) ? app.build_default_query_result(doc, req.query) : app.build_default_result(doc, (req.query.index) ? req.query.index : 'path')
                     }
                 )
+
               }
 
               query.run(app.conn, {arrayLimit: 10000000}, function(err, resp){
