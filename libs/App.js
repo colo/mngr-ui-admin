@@ -368,10 +368,35 @@ module.exports = new Class({
 
         // let stat = {}
         // stat['data'] = (!Array.isArray(data)) ? [data] : data
+
+
         data = (!Array.isArray(data)) ? [data] : data
+        /**
+        * data should be array of arrays (each array is a grouped path)
+        * when index=false is used, data isn't grouped, so we groupe it here
+        *
+        **/
+        if(!Array.isArray(data[0])){
+          // let tmp_data = []
+          let tmp_obj = {}
+          Array.each(data, function(value, key){
+            // tmp_data.push([value])
+            if(value && value.metadata && value.metadata.path){
+              if(!tmp_obj[value.metadata.path]) tmp_obj[value.metadata.path] = []
+              tmp_obj[value.metadata.path].push(value)
+            }
+          })
+
+          data = []
+          Object.each(tmp_obj, function(value){
+            data.push(value)
+          })
+        }
 
         debug('FORMAT %o', data)
         // process.exit(1)
+
+
         // let stat_counter = 0
         // let not_equal_length = true
 
