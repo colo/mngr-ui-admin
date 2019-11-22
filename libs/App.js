@@ -850,7 +850,8 @@ module.exports = new Class({
       else{
         // result.opts = opts
         // this.response(response, {from: from, input: 'domains', domains: result})
-        debug_internals('from cache %o', params, result)
+        debug_internals('from cache %o', params) //result
+
         let resp = {id: response, metadata: {from, input, cache: {key: cache_key, ttl: this[input.toUpperCase()+'_TTL']}}}
         if(params && (Object.every(params, function(value, key){ return value === undefined }) || params.value)){
           // resp['data'] = result
@@ -865,16 +866,19 @@ module.exports = new Class({
           if(!Array.isArray(_arr_resp))
             _arr_resp = [_arr_resp]
 
-          Array.each(_arr_resp, function(data, index){
-            if(data){
-              Object.each(data, function(value, key){
-                debug_internals('_get_resp delete key %s %s', key, params)
-                if(params && key !== params.prop)
-                  delete data[key]
-              })
-            }
+          if(params && params.prop){
+            Array.each(_arr_resp, function(data, index){
+              if(data){
+                Object.each(data, function(value, key){
+                  debug_internals('_get_resp delete key %s %s', key, params)
+                  if(params && key !== params.prop)
+                    delete data[key]
+                })
+              }
 
-          })
+            })
+          }
+
 
           // if(!Array.isArray(resp['data'])){
           //   resp['data'] = _arr_resp[0]
