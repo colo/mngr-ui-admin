@@ -1442,7 +1442,8 @@ module.exports = new Class({
     return result
   },
   __transform_data: function(type, data_path, data, cache_key, cb){
-    debug_internals('__transform_data', type)
+    debug_internals('__transform_data', type, data_path, data)
+
     let convert = (type == 'stat') ? this.data_to_stat : this.data_to_tabular
 
     let transformed = {}
@@ -1686,6 +1687,9 @@ module.exports = new Class({
 
 
                 convert(d, chart_instance, path, function(name, stat){
+                  // debug_internals('transform default tabular %s %o', name, stat)
+                  // if(type !== 'stat')
+                  //   process.exit(1)
 
                   /**
                   * clean stats that couldn't be converted with "data_to_tabular"
