@@ -223,6 +223,9 @@ module.exports = new Class({
                   query = query.getAll(app.r.args(req.params.value) , {index: pluralize(req.params.prop, 1)})
                 }
 
+                if(req.query && req.query.filter)
+                  query = app.query_with_filter(query, req.query.filter)
+
                 /**
                 * changes (feed)
                 **/
@@ -231,6 +234,40 @@ module.exports = new Class({
 
                 if(req.query && req.query.transformation)
                   query = app.query_with_transformation(query, req.query.transformation)
+                /**
+                * orderBy need to be called before filters (its order table), other trasnform like "slice" are run after "filters"
+                **/
+                // let transformation = (req.query && req.query.transformation) ? req.query.transformation : undefined
+                // if(
+                //   transformation
+                //   && (transformation.orderBy
+                //     || (Array.isArray(transformation) && transformation.some(function(trasnform){ return Object.keys(trasnform)[0] === 'orderBy'}))
+                //   )
+                // ){
+                //   let orderBy = (transformation.orderBy) ? transformation.orderBy : transformation.filter(function(trasnform){ return Object.keys(trasnform)[0] === 'orderBy' })[0]//one orderBy
+                //   query = app.query_with_transformation(query, orderBy)
+                //
+                //   if(Array.isArray(transformation)){
+                //     transformation = Array.clone(transformation)
+                //     transformation.each(function(trasnform, index){
+                //       if(Object.keys(trasnform)[0] === 'orderBy')
+                //         transformation[index] = undefined
+                //     })
+                //
+                //     transformation = transformation.clean()
+                //   }
+                //
+                //
+                // }
+                //
+                // if(req.query && req.query.filter)
+                //   query = app.query_with_filter(query, req.query.filter)
+                //
+                // if(transformation)
+                //   query = app.query_with_transformation(query, transformation)
+                /**
+                * orderBy need to be called before filters (its order table), other trasnform like "slice" are run after "filters"
+                **/
 
                 query = (req.params.path)
                 ? query
@@ -587,6 +624,8 @@ module.exports = new Class({
                   	{index: index}
                   )
 
+                if(req.query && req.query.filter)
+                  query = app.query_with_filter(query, req.query.filter)
                 /**
                 * changes (feed)
                 **/
