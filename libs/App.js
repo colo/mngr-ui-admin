@@ -1044,10 +1044,18 @@ module.exports = new Class({
       this.__pipeline.addEvent(this.__pipeline.ON_SAVE_DOC, function(doc){
         let {id, type} = doc
 
-        debug_internals('__pipeline onSaveDoc %o', doc)
+        // debug_internals('__pipeline onSaveDoc %o', doc)
 
-        if(id)
+        if(id){
+          // if(Array.isArray(id)){
+          //   Array.each(id, function(_id){
+          //     this.fireEvent(_id, [undefined, doc])
+          //   }.bind(this))
+          // }
+          // else{
           this.fireEvent(id, [undefined, doc])
+          // }
+        }
 
         if(type)
           this.fireEvent(type, [undefined, doc])
@@ -1059,8 +1067,18 @@ module.exports = new Class({
         let {id, type} = resp
 
         debug_internals('__pipeline onDocError %o', err, resp)
-        if(id)
-          this.fireEvent(id, [err, resp])
+        // if(id)
+        //   this.fireEvent(id, [err, resp])
+        if(id){
+          // if(Array.isArray(id)){
+          //   Array.each(id, function(_id){
+          //     this.fireEvent(_id, [err, resp])
+          //   }.bind(this))
+          // }
+          // else{
+           this.fireEvent(id, [err, resp])
+          // }
+        }
 
         if(type)
           this.fireEvent(type, [err, resp])
