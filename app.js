@@ -209,8 +209,18 @@ var MyApp = new Class({
 		let io = require("socket.io")(server, {
 			// transports: ['websocket', 'polling'],
 			pingInterval: 1000,
-  		pingTimeout: 20000,
-			httpCompression: false
+  		pingTimeout: 60000,
+			httpCompression: true,
+			origins: '*:*', // change this for DEV && PROD env
+			handlePreflightRequest: (req, res) => {
+        const headers = {
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Origin": req.headers.origin, //or the specific origin you want to give access to,
+            "Access-Control-Allow-Credentials": true
+        };
+        res.writeHead(200, headers);
+        res.end();
+    	}
 		})
 		io.use(sharedsession(this.session, {
 		    autoSave:true
