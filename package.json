@@ -37,7 +37,7 @@
     "node-tabular-data": "git+https://github.com/colo/node-tabular-data.git",
     "pluralize": "^8.0.0",
     "qrate": "^1.0.2",
-    "serialize-to-js": "^1.2.2",
+    "serialize-to-js": "^3.0.1",
     "serve-index": "^1.7.3",
     "serve-static": "^1.10.2",
     "socket.io": "^2.1.1",
