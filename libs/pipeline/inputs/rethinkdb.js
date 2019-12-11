@@ -24,6 +24,8 @@ module.exports = new Class({
   ID: 'b1f06da2-82bd-4c95-8e4e-a5a25075e39b',
 
   options: {
+    changes: {includeTypes: true, squash: 1},
+    
     db: undefined,
     table: undefined,
     type: undefined,
@@ -230,7 +232,8 @@ module.exports = new Class({
                 * changes (feed)
                 **/
                 if(req.query.register === 'changes')
-                  query = query.changes({includeTypes: true, squash: 1})
+                  query = query.changes(req.query.opts || app.options.changes)
+                  // query = query.changes({includeTypes: true, squash: 1})
 
                 if(req.query && req.query.transformation)
                   query = app.query_with_transformation(query, req.query.transformation)
@@ -630,7 +633,7 @@ module.exports = new Class({
                 * changes (feed)
                 **/
                 if(req.query.register === 'changes')
-                  query = query.changes({includeTypes: true, squash: 1})
+                  query = query.changes(req.query.opts || app.options.changes)
 
                 if(req.query && req.query.transformation)
                   query = app.query_with_transformation(query, req.query.transformation)
