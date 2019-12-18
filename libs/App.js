@@ -590,15 +590,26 @@ module.exports = new Class({
 
   },
   merge_result_data: function(data){
-    debug('merge_result_data')
+    debug('merge_result_data', data)
+
     let newData
     if(Array.isArray(data)){
       debug('merge_result_data TO MERGE ARRAY', data)
-      newData = data.shift()
+      // process.exit(1)
+      let first = data.shift()
+      if(first.data && first.metadata){
+        newData = {}
+        newData[first.metadata.path] = first.data
+      }
+      else{
+        newData = first
+
+      }
 
       for(const i in data){
         newData = this.deep_object_merge(newData, data[i])
       }
+
     }
     else if(typeof data === 'object' && data.constructor === Object && Object.keys(data).length > 0){
       newData = {}
@@ -617,39 +628,54 @@ module.exports = new Class({
     return newData
   },
   deep_object_merge: function(obj1, obj2){
-    // debug('deep_object_merge %o %o', obj1, obj2)
+    debug('deep_object_merge %o %o', obj1, obj2)
+    // process.exit(1)
 
     let merged = (obj1) ?  Object.clone(obj1): {}
+    // let merged = (obj1) ?  obj1 : {}
 
-    for(const key in obj2){
-      if(!obj1[key]){
-        obj1[key] = obj2[key]
-      }
-      else if(obj2[key] !== null && obj1[key] !== obj2[key]){
-        if(typeof obj2[key] === 'object' && obj2[key].constructor === Object && Object.keys(obj2[key]).length > 0){
-          merged[key] = this.deep_object_merge(merged[key], obj2[key])
-
-          // if(Object.keys(merged).length === 0)
-          //   delete merged[key]
-
-        }
-        else if(Array.isArray(merged[key]) && Array.isArray(obj2[key])){
-          merged[key].combine(obj2[key])
-        }
-        // else if( Object.keys(obj2[key]).length > 0 ){
-        else {
-          if(!Array.isArray(merged[key])){
-            let tmpVal = merged[key]
-            merged[key] = []
-          }
-
-          merged[key].include(obj2[key])
-        }
+    if(obj2.data && obj2.metadata){
+      if(!merged[obj2.metadata.path]){
+        merged[obj2.metadata.path] = obj2.data
 
       }
 
+      merged[obj2.metadata.path] = this.deep_object_merge(merged[obj2.metadata.path], obj2.data)
 
     }
+    else{
+      for(const key in obj2){
+        if(!obj1[key]){
+          obj1[key] = obj2[key]
+        }
+        else if(obj2[key] !== null && obj1[key] !== obj2[key]){
+          if(typeof obj2[key] === 'object' && obj2[key].constructor === Object && Object.keys(obj2[key]).length > 0){
+            merged[key] = this.deep_object_merge(merged[key], obj2[key])
+
+            // if(Object.keys(merged).length === 0)
+            //   delete merged[key]
+
+          }
+          else if(Array.isArray(merged[key]) && Array.isArray(obj2[key])){
+            merged[key].combine(obj2[key])
+          }
+          // else if( Object.keys(obj2[key]).length > 0 ){
+          else {
+            if(!Array.isArray(merged[key])){
+              let tmpVal = merged[key]
+              merged[key] = []
+            }
+
+            merged[key].include(obj2[key])
+          }
+
+        }
+
+
+      }
+    }
+
+
 
 
     return merged
