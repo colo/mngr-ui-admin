@@ -29,6 +29,8 @@ let data_to_tabular = require('node-tabular-data').data_to_tabular
 
 let eachOf = require( 'async' ).eachOf
 
+let traversed_path_require = {}
+
 module.exports = new Class({
   Extends: App,
   // Implements: Chain,
@@ -406,7 +408,8 @@ module.exports = new Class({
           key = (value[0] && value[0].metadata && value[0].metadata.path) ? value[0].metadata.path : key
           let stat = {}
           stat['data'] = value
-          this.__transform_data('stat', '', stat, this.ID, function(value){
+          this.__transform_data('stat', key, stat, this.ID, function(value){
+            // process.exit(1)
             // transformed[key] = (value && value.stat) ? value.stat : undefined
             transformed[key] = (value && value.stat && value.stat.data) ? value.stat.data : undefined
             callback()
@@ -432,8 +435,9 @@ module.exports = new Class({
                 // stat['data'] = value
 
                 // this.__transform_data('tabular', 'data', value.data, this.id, function(value){
-                this.__transform_data('tabular', 'data', value, this.id, function(value){
+                this.__transform_data('tabular', key, value, this.id, function(value){
                   debug_internals(': __transform_data tabular -> %o', value) //result
+                  // process.exit(1)
                   transformed[key] = value
                   callback()
                 }.bind(this))
@@ -1876,21 +1880,42 @@ module.exports = new Class({
     path = path.replace(/_/g, '.')
     original_path = original_path.replace(/_/g, '.')
 
-    debug_internals('__traverse_path_require %s', this.options.libs+'/'+type+'/'+path)
-
-    try{
-      let chart = require(this.options.libs+'/'+type+'/'+path)(stat, original_path)
-
-      return chart
+    if(traversed_path_require[this.options.libs+'/'+type+'/'+path] && traversed_path_require[this.options.libs+'/'+type+'/'+path] !== undefined){
+      return traversed_path_require[this.options.libs+'/'+type+'/'+path]
     }
-    catch(e){
+    else if(traversed_path_require[this.options.libs+'/'+type+'/'+path] === undefined){
       if(path.indexOf('.') > -1){
         let pre_path = path.substring(0, path.lastIndexOf('.'))
-        return this.__traverse_path_require(type, pre_path, stat, original_path)
+        if(traversed_path_require[this.options.libs+'/'+type+'/'+pre_path] !== undefined){
+          let chart = __traverse_path_require(type, pre_path, stat, original_path)
+          traversed_path_require[this.options.libs+'/'+type+'/'+pre_path] = chart
+          return chart
+        }
       }
-
       return undefined
     }
+    else{
+      debug_internals('__traverse_path_require %s', this.options.libs+'/'+type+'/'+path)
+
+      try{
+        let chart = require(this.options.libs+'/'+type+'/'+path)(stat, original_path)
+        traversed_path_require[this.options.libs+'/'+type+'/'+path] = chart
+        return chart
+      }
+      catch(e){
+        traversed_path_require[this.options.libs+'/'+type+'/'+path] = undefined
+        if(path.indexOf('.') > -1){
+          let pre_path = path.substring(0, path.lastIndexOf('.'))
+          let chart = this.__traverse_path_require(type, require_path, pre_path, stat, original_path)
+          traversed_path_require[this.options.libs+'/'+type+'/'+pre_path] = chart
+          return chart
+        }
+
+        return undefined
+      }
+
+    }
+
 
 
     // let path = path.split('.')
