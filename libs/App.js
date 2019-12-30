@@ -413,7 +413,10 @@ module.exports = new Class({
         let transformed = {}
 
         eachOf(data, function (value, key, callback) {
-          key = (value[0] && value[0].metadata && value[0].metadata.path) ? value[0].metadata.path : key
+          // debug('RESPONSES %s %o', key, value)
+          // process.exit(1)
+
+          key = (full === false && value[0] && value[0].metadata && value[0].metadata.path) ? value[0].metadata.path : key
 
           let stat = {'data': undefined}
           stat['data'] = value
@@ -425,7 +428,7 @@ module.exports = new Class({
             })
             transformed[key]['metadata'] = this.merge_result_data(transformed[key]['metadata'])
           }
-          // debug('RESPONSES %s %o', key, stat.metadata)
+
 
           this.__transform_data('stat', key, stat, this.ID, function(value){
             // transformed[key] = (value && value.stat) ? value.stat : undefined
