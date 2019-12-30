@@ -348,9 +348,17 @@ module.exports = new Class({
   //   }.bind(this), cb)
   // },
 
-  data_formater: function(data, format, cb){
+  data_formater: function(data, format, full, cb){
+    if(typeof full === 'function'){
+      cb = full
+      full = false
+    }
+    else {
+      full = (full === true) ? full : false
+    }
+
     debug('data_formater FUNC %s %o', format, data)
-    // process.exit(1)
+
     if(format && data && (data.length > 0 || Object.getLength(data) > 0)){
 
       if(format === 'merged'){
@@ -406,19 +414,36 @@ module.exports = new Class({
 
         eachOf(data, function (value, key, callback) {
           key = (value[0] && value[0].metadata && value[0].metadata.path) ? value[0].metadata.path : key
-          let stat = {}
+
+          let stat = {'data': undefined}
           stat['data'] = value
+
+          if(full === true){//includes metadata
+            transformed[key] = {data: undefined, metadata: []}
+            value.each(function(val){
+              transformed[key]['metadata'].push(val.metadata)
+            })
+            transformed[key]['metadata'] = this.merge_result_data(transformed[key]['metadata'])
+          }
+          // debug('RESPONSES %s %o', key, stat.metadata)
+
           this.__transform_data('stat', key, stat, this.ID, function(value){
-            // process.exit(1)
             // transformed[key] = (value && value.stat) ? value.stat : undefined
-            transformed[key] = (value && value.stat && value.stat.data) ? value.stat.data : undefined
+            if(full === true){
+              transformed[key].data = (value && value.stat && value.stat.data) ? value.stat.data : undefined
+            }
+            else{
+              transformed[key] = (value && value.stat && value.stat.data) ? value.stat.data : undefined
+            }
+            // debug('RESPONSES %s %o', key, transformed[key])
+            // process.exit(1)
             callback()
           })
         }.bind(this), function (err) {
 
           data = transformed
 
-          debug('FORMAT trasnformed %O', transformed)
+          debug('FORMAT transformed %O', data)
           // process.exit(1)
           // if( format == 'tabular' && !err && value.stat['data'] && (value.stat['data'].length > 0 || Object.getLength(value.stat['data']) > 0)){
           // if( format == 'tabular' && data.length > 0){
@@ -426,7 +451,15 @@ module.exports = new Class({
             // let transformed = []
             let transformed = {}
 
+            // transformed[key].data = undefined
+
             eachOf(data, function (value, key, callback) {
+
+              if(full === true){
+                transformed[key] = {data: undefined, metadata: data[key].metadata}
+                value = value.data
+              }
+
               // debug_internals(': __transform_data tabular -> %o %s', value, key) //result
               // process.exit(1)
               // if(value && value.data && (value.data.length > 0 || Object.getLength(value.data))){
@@ -438,7 +471,13 @@ module.exports = new Class({
                 this.__transform_data('tabular', key, value, this.id, function(value){
                   debug_internals(': __transform_data tabular -> %o', value) //result
                   // process.exit(1)
-                  transformed[key] = value
+                  if(full === true){
+                    transformed[key].data = value
+                  }
+                  else{
+                    transformed[key] = value
+                  }
+
                   callback()
                 }.bind(this))
               }
