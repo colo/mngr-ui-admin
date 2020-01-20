@@ -1,6 +1,6 @@
 'use strict'
 
-const App = require('js-pipeline.inputs.rethinkdb-rest')
+const App = require('js-pipeline.input.rethinkdb-rest')
 // const App = require ( 'node-app-rethinkdb-client/index' )
 
 let debug = require('debug')('mngr-ui-admin:apps:libs:Pipeline:Inputs:Rethinkdb'),

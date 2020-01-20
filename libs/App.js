@@ -14,8 +14,8 @@ const jscaching = require('js-caching')
 // let RethinkDBStoreIn = require('js-caching/libs/stores/rethinkdb').input
 // let RethinkDBStoreOut = require('js-caching/libs/stores/rethinkdb').output
 
-let RedisStoreIn = require('js-caching/libs/stores/redis').input
-let RedisStoreOut = require('js-caching/libs/stores/redis').output
+let RedisStoreIn = require('js-caching.store.redis').input
+let RedisStoreOut = require('js-caching.store.redis').output
 
 const Pipeline = require('js-pipeline')
 
