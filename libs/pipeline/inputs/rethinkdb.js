@@ -25,7 +25,7 @@ module.exports = new Class({
 
   options: {
     changes: {includeTypes: true, squash: 1},
-    
+
     db: undefined,
     table: undefined,
     type: undefined,
