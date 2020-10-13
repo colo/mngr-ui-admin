@@ -26,6 +26,20 @@ module.exports = new Class({
 		//middlewares: [req_limit.ip(), req_max.ip()],
 		//middlewares: [req_limit.user()],
 
+		// authentication: {
+		// 	users: [
+		// 		{ id: 1, username: 'anonymous' , role: 'anonymous', password: ''},
+		// 		//{ id: 1, username: 'lbueno' , role: 'admin', password: '40bd001563085fc35165329ea1ff5c5ecbdbbeef'}, //sha-1 hash
+		// 		/**
+		// 		 * *curl -H "Content-Type:application/json" -H "Accept:application/json" -H "Authorization: Basic bGJ1ZW5vOjEyMw==" http://localhost:8081/
+		// 		 * */
+		// 		{ id: 'xxxxx@example.com', username: 'xxxxx@example.com' , role: 'admin', password: '123'}, //sha-1 hash
+		// 		{ id: 3, username: 'test' , role: 'user', password: '123'}
+		// 	],
+		// 	store: { module: RethinkDBStore, options: require(ETC+'default.conn.js')()},// MemoryStoreAuth,
+		// 	auth: { module: ImapAuth, options: { host: 'imap.example.com', port: 143, secure: false}} // MemoryAuth
+		// },
+
 		authentication: {
 			users : [
 					{ id: 1, username: 'anonymous' , role: 'anonymous', password: ''},

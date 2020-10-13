@@ -5,7 +5,7 @@ module.exports = function(){
   return {
     host: 'elk',
 		port: 28015,
-		db: 'servers',
+		db: 'devel',
     // couchdb: {
     //   request: (redis) ? require('cachemachine')({redis: true, hostname: 'elk'}) : undefined
     // },
