@@ -39,7 +39,12 @@
 			"name": "Only allow n Subjects in a Role, set by cardinality",
 			"cardinality": 1,
 			"roles": ["admin"]
+		},
+		{
+			"type": "SSD",
+			"id": "ssd",
+			"name": "A user is authorized for a role only if that role is not mutually exclusive with any of the other roles for which the user is already authorized.",
+			"roles": ["anonymous", "user"]
 		}
-
   ]
 }

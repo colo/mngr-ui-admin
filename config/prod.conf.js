@@ -61,7 +61,7 @@ module.exports = new Class({
 				/**
 				 * *curl -H "Content-Type:application/json" -H "Accept:application/json" -H "Authorization: Basic bGJ1ZW5vOjEyMw==" http://localhost:8081/
 				 * */
-				{ id: 2, username: 'lbueno' , role: 'admin', password: '123'}, //sha-1 hash
+				{ id: 2, username: 'lbueno' , role: 'user', password: '123'}, //sha-1 hash
 				{ id: 3, username: 'test' , role: 'user', password: '123'}
 			],
 		},
@@ -96,7 +96,7 @@ module.exports = new Class({
 						route.callbacks.unshift('check_authentication');
 
 						if(verb == 'get')//users can "read" info
-							route.roles = ['user']
+							route.roles = ['admin']
 					});
 				}
 

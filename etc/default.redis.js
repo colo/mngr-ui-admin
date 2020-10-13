@@ -1,7 +1,7 @@
 'use strict'
 
 module.exports = {
-	host: '127.0.0.1',
+	host: 'elk',
 	db: 0,
 	channel: 'ui',
 }
