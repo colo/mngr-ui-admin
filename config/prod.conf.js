@@ -100,7 +100,7 @@ module.exports = new Class({
 				secret: '19qX9cZ3yvjsMWRiZqOn',
 				resave: true,
 				saveUninitialized: false,
-				name: 'mngr.api',
+				name: 'SID',
 				unset: 'destroy'
 		});
 
