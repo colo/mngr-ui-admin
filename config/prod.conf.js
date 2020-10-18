@@ -108,20 +108,37 @@ module.exports = new Class({
 		/**
 		 * add 'check_authentication' & 'check_authorization' to each route
 		 * */
-		Object.each(this.options.api.routes, function(routes, verb){
+		 if(this.options.api && this.options.api.routes)
+			Object.each(this.options.api.routes, function(routes, verb){
 
-			if(verb != 'all'){
-				Array.each(routes, function(route){
-					//debug('route: ' + verb);
-					route.callbacks.unshift('check_authorization');
-					route.callbacks.unshift('check_authentication');
+				if(verb != 'all'){
+					Array.each(routes, function(route){
+						//debug('route: ' + verb);
+						route.callbacks.unshift('check_authorization');
+						// route.callbacks.unshift('check_authentication');
 
-					if(verb == 'get')//users can "read" info
-						route.roles = ['admin']
-				});
-			}
+						// if(verb == 'get')//users can "read" info
+							route.roles = ['admin']
+					});
+				}
 
-		});
+			});
+
+		if(this.options.io && this.options.io.routes)
+      Object.each(this.options.io.routes, function(routes, verb){
+
+  			if(verb != 'all'){
+					Array.each(routes, function(route){
+						//debug('route: ' + verb);
+						route.callbacks.unshift('check_authorization');
+						// route.callbacks.unshift('check_authentication');
+
+						// if(verb == 'get')//users can "read" info
+							route.roles = ['admin']
+					});
+  			}
+
+  		});
 
 		this.parent(options);//override default options
 

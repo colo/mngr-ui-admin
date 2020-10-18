@@ -116,7 +116,7 @@ module.exports = new Class({
 			})
 	  ],
 
-		path: '/',
+		path: '',
 
 		logs: undefined,
 
@@ -130,22 +130,22 @@ module.exports = new Class({
 			config: path.join(__dirname,'./rbac.json'),
 		},
 
-		routes: {
-			// get: [
-			// 	{
-			// 		path: '',
-			// 		callbacks: ['get'],
-			// 		version: '',
-			// 	},
-			// ],
-			all: [
-				{
-					path: '',
-					callbacks: ['404'],
-					version: '',
-				},
-			]
-		},
+		// routes: {
+		// 	// get: [
+		// 	// 	{
+		// 	// 		path: '',
+		// 	// 		callbacks: ['get'],
+		// 	// 		version: '',
+		// 	// 	},
+		// 	// ],
+		// 	all: [
+		// 		{
+		// 			path: '',
+		// 			callbacks: ['404'],
+		// 			version: '',
+		// 		},
+		// 	]
+		// },
 
 		// api: {
     //

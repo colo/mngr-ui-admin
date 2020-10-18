@@ -62,6 +62,7 @@ var MyApp = new Class({
 	// pipeline: undefined,
 
 	options: {
+		id: 'server',
 		// path: '/_app',
 
 		params: {

@@ -99,53 +99,53 @@ module.exports = new Class({
     },
   },
   // _arguments: function(args, defined_params){
-  _arguments: function(args){
-		let req, resp, next, socket = undefined
-
-		if(args[0]._readableState){//express
-			req = args[0]
-			resp = args[1]
-			next = args[2]
-		}
-		else{//socket.io
-			socket = args[0]
-			next = args[1]
-		}
-
-		// let params = {}
-    let opts = {}
-		if(typeof(req) !== 'undefined'){
-			opts = {params: req.params, body: req.body, query: req.query}
-		}
-		else{
-      // // ////console.log('socket', args)
-      // let isObject = (args[2] !== null && typeof args[2] === 'object' && isNaN(args[2]) && !Array.isArray(args[2])) ? true: false
-      // //console.log('isObject',isObject)
-      //
-      // if(defined_params && isObject == false){
-      //   Array.each(defined_params, function(name, index){
-      //     params[name] = args[index + 2]
-      //   })
-      // }
-      // else{
-	     // params = args[2]
-      // }
-      if(args[3]){
-        opts = []
-        for(let i = 2; i < args.length; i++){
-          opts.push(args[i])
-        }
-      }
-      else{
-        opts = args[2]
-      }
-      opts = opts || {params: {}, body: {}, query: {}}
-		}
-
-
-    // debug_internals('_arguments', {req, resp, socket, next, params})
-		return {req, resp, socket, next, opts}
-	},
+  // _arguments: function(args){
+	// 	let req, resp, next, socket = undefined
+  //
+	// 	if(args[0]._readableState){//express
+	// 		req = args[0]
+	// 		resp = args[1]
+	// 		next = args[2]
+	// 	}
+	// 	else{//socket.io
+	// 		socket = args[0]
+	// 		next = args[1]
+	// 	}
+  //
+	// 	// let params = {}
+  //   let opts = {}
+	// 	if(typeof(req) !== 'undefined'){
+	// 		opts = {params: req.params, body: req.body, query: req.query}
+	// 	}
+	// 	else{
+  //     // // ////console.log('socket', args)
+  //     // let isObject = (args[2] !== null && typeof args[2] === 'object' && isNaN(args[2]) && !Array.isArray(args[2])) ? true: false
+  //     // //console.log('isObject',isObject)
+  //     //
+  //     // if(defined_params && isObject == false){
+  //     //   Array.each(defined_params, function(name, index){
+  //     //     params[name] = args[index + 2]
+  //     //   })
+  //     // }
+  //     // else{
+	//      // params = args[2]
+  //     // }
+  //     if(args[3]){
+  //       opts = []
+  //       for(let i = 2; i < args.length; i++){
+  //         opts.push(args[i])
+  //       }
+  //     }
+  //     else{
+  //       opts = args[2]
+  //     }
+  //     opts = opts || {params: {}, body: {}, query: {}}
+	// 	}
+  //
+  //
+  //   // debug_internals('_arguments', {req, resp, socket, next, params})
+	// 	return {req, resp, socket, next, opts}
+	// },
 
   initialize: function(options){
     if(this.options.api && this.options.api.routes)
@@ -569,7 +569,7 @@ module.exports = new Class({
     let {err, result, resp, socket, input, opts} = payload
     // let format = (opts && opts.query) ? opts.query.format : undefined
 
-    debug('generic_response', result.metadata)
+    debug('generic_response', input, result.metadata)
     // process.exit(1)
     // result.opts = opts
     result.metadata.opts = opts
@@ -680,8 +680,9 @@ module.exports = new Class({
         resp.status(status).json(result)
       }
       else{
-        debug_internals('generic_response', err, result)
+        debug_internals('generic_response', err, result, input)
         socket.emit(input, result)
+        // process.exit(1)
       }
 
 
@@ -1427,9 +1428,10 @@ module.exports = new Class({
   **/
   __process_session: function(){
     let {req, resp, socket, next, opts} = this._arguments(arguments)
-    // debug_internals('__process_session', arguments)
 
     let session = (socket) ? socket.handshake.session : req.session
+    debug_internals('__process_session', session)
+
     // let id = (socket) ? socket.id : req.session.id
     // debug_internals('__process_session store', (socket) ? socket.handshake.sessionStore : req.sessionStore)
 
