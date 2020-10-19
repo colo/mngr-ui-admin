@@ -114,6 +114,7 @@ module.exports = new Class({
 			cors({
 				origin: [
 					'http://localhost:8083',
+					'http://localhost:8080',
 				],
 				credentials: true,
 				'exposedHeaders': ['Link', 'Content-Range', 'set-cookie']

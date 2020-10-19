@@ -2,5 +2,5 @@
 
 module.exports = function(){
   // let req = request()
-  return { host: 'localhost', port: 143, secure: false }
+  return { host: 'imap.educativa.com', port: 143, secure: false }
 }
