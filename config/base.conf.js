@@ -112,7 +112,11 @@ module.exports = new Class({
 			bodyParser.json(),
 			bodyParser.urlencoded({ extended: true }),
 			cors({
-				'exposedHeaders': ['Link', 'Content-Range']
+				origin: [
+					'http://localhost:8083',
+				],
+				credentials: true,
+				'exposedHeaders': ['Link', 'Content-Range', 'set-cookie']
 			})
 	  ],
 
