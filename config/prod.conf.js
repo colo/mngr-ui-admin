@@ -100,10 +100,28 @@ module.exports = new Class({
 				secret: '19qX9cZ3yvjsMWRiZqOn',
 				resave: true,
 				saveUninitialized: false,
-				name: 'SID',
+				// name: 'SID',
 				unset: 'destroy'
 		});
 
+		/**
+		 * add 'check_authentication' & 'check_authorization' to each route
+		 * */
+		 if(this.options.routes)
+			Object.each(this.options.routes, function(routes, verb){
+
+				if(verb != 'all'){
+					Array.each(routes, function(route){
+						//debug('route: ' + verb);
+						route.callbacks.unshift('check_authorization');
+						// route.callbacks.unshift('check_authentication');
+
+						// if(verb == 'get')//users can "read" info
+							route.roles = ['admin']
+					});
+				}
+
+			});
 
 		/**
 		 * add 'check_authentication' & 'check_authorization' to each route
