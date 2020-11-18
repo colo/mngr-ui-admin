@@ -25,6 +25,7 @@ module.exports = new Class({
 
   options: {
     changes: {includeTypes: true, squash: 1},
+    changes_expire: 0,
     run: {arrayLimit: 1000000, maxBatchSeconds: 1},
 
     db: undefined,
