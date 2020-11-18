@@ -210,8 +210,8 @@ var MyApp = new Class({
 		let io = require("socket.io")(server, {
 			// transports: ['websocket', 'polling'],
 			transports: ['websocket'],
-			pingInterval: 1000,
-  		pingTimeout: 60000,
+			// pingInterval: 1000,
+  		// pingTimeout: 60000,
 			httpCompression: true,
 			origins: '*:*', // change this for DEV && PROD env
 			handlePreflightRequest: (req, res) => {
